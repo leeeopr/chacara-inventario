@@ -956,44 +956,111 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
         )}
 
         {/* STEP BODY */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+        <div
+          className={`flex-1 ${
+            currentStep === 1
+              ? 'min-h-0 overflow-y-auto lg:overflow-hidden p-4 sm:p-5'
+              : 'overflow-y-auto p-5 space-y-6'
+          }`}
+        >
           {/* =========================================================================
-              STEP 1: LOCAL DE APLICAÇÃO
+              STEP 1: LOCAL DE APLICAÇÃO (2/3 PLANTA À ESQUERDA, 1/3 PAINEL À DIREITA)
              ========================================================================= */}
           {currentStep === 1 && (
-            <div className="space-y-5 animate-fadeIn">
-              <div>
-                <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                  Onde este item será aplicado?
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Escolha o escopo de localização do item e selecione na planta baixa interativa.
-                </p>
+            <div className="h-full flex flex-col lg:grid lg:grid-cols-12 gap-5 animate-fadeIn min-h-0">
+              {/* LEFT COLUMN: 2/3 Interactive Floor Plan (8 cols of 12 = 66.67%) */}
+              <div className="order-2 lg:order-1 lg:col-span-8 flex flex-col h-[500px] lg:h-full min-h-[460px] rounded-3xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner relative">
+                {distributionMode !== 'none' ? (
+                  <FloorPlanView
+                    key={`floorplan-selector-${distributionMode}`}
+                    rooms={rooms}
+                    roomCategories={roomCategories}
+                    shapes={floorPlanShapes}
+                    mode="selector"
+                    selectedCategoryId={
+                      distributionMode === 'multiple' ? selectedFloorPlanCategoryId : null
+                    }
+                    selectedRoomId={distributionMode === 'single' ? roomId : null}
+                    selectedRoomIds={
+                      distributionMode === 'multiple'
+                        ? distributionRows.map((r) => r.room_id)
+                        : roomId
+                        ? [roomId]
+                        : []
+                    }
+                    onSelectRoom={handleSelectRoomOnFloorPlan}
+                    onSelectCategory={handleSelectCategoryOnFloorPlan}
+                    className="h-full w-full border-0 rounded-none flex-1 min-h-0"
+                  />
+                ) : (
+                  <div className="h-full w-full relative flex flex-col items-center justify-center p-6 bg-slate-950">
+                    <FloorPlanView
+                      rooms={rooms}
+                      roomCategories={roomCategories}
+                      shapes={floorPlanShapes}
+                      mode="selector"
+                      selectedCategoryId={null}
+                      selectedRoomId={null}
+                      selectedRoomIds={[]}
+                      className="h-full w-full border-0 rounded-none absolute inset-0 opacity-20 pointer-events-none"
+                    />
+                    <div className="relative z-10 max-w-md p-6 sm:p-8 rounded-3xl bg-slate-900/95 border-2 border-indigo-500/40 text-center space-y-3 shadow-2xl backdrop-blur-md">
+                      <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto shadow-inner">
+                        <Globe className="w-8 h-8" />
+                      </div>
+                      <h4 className="text-lg font-black text-white">Item de Escopo Global</h4>
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        Este item pertence ao catálogo geral da chácara e não fica alocado em um cômodo específico.
+                        A seleção de cômodo na planta baixa não é necessária.
+                      </p>
+                      <div className="pt-2">
+                        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-bold">
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Clique em "Continuar" para foto e informações</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* 3 Scope Selection Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* 1. Cômodo individual */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDistributionMode('single');
-                    setSelectedFloorPlanCategoryId(null);
-                    setUncategorizedRoomWarning(null);
-                    const activeId = roomId || distributionRows[0]?.room_id || rooms[0]?.id || '';
-                    if (activeId) {
-                      setRoomId(activeId);
-                    }
-                  }}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between ${
-                    distributionMode === 'single'
-                      ? 'bg-emerald-500/15 border-emerald-500 text-white shadow-lg shadow-emerald-500/10'
-                      : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-3">
+              {/* RIGHT COLUMN: 1/3 Selection Options & Context Panel (4 cols of 12 = 33.33%) */}
+              <div className="order-1 lg:order-2 lg:col-span-4 flex flex-col gap-3.5 overflow-y-auto pr-1">
+                {/* Header */}
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                    Etapa 1 • Local de Aplicação
+                  </span>
+                  <h3 className="text-sm font-black text-white">
+                    Escopo de Localização
+                  </h3>
+                  <p className="text-[11px] text-slate-400 leading-snug">
+                    Defina onde o item existirá na propriedade:
+                  </p>
+                </div>
+
+                {/* 3 Scope Selection Cards */}
+                <div className="space-y-2">
+                  {/* Option 1: Cômodo individual */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDistributionMode('single');
+                      setSelectedFloorPlanCategoryId(null);
+                      setUncategorizedRoomWarning(null);
+                      const activeId = roomId || distributionRows[0]?.room_id || rooms[0]?.id || '';
+                      if (activeId) {
+                        setRoomId(activeId);
+                      }
+                    }}
+                    className={`w-full p-3.5 rounded-2xl border-2 text-left transition-all flex items-center gap-3 ${
+                      distributionMode === 'single'
+                        ? 'bg-emerald-500/15 border-emerald-500 text-white shadow-lg shadow-emerald-500/10'
+                        : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                         distributionMode === 'single'
                           ? 'bg-emerald-500 text-slate-950 font-black'
                           : 'bg-slate-800 text-slate-400'
@@ -1001,38 +1068,38 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
                     >
                       <Home className="w-5 h-5" />
                     </div>
-                    {distributionMode === 'single' && (
-                      <span className="w-3 h-3 rounded-full bg-emerald-400 ring-4 ring-emerald-500/20" />
-                    )}
-                  </div>
-                  <div>
-                    <span className="block text-sm font-black text-white">Cômodo individual</span>
-                    <span className="block text-[11px] text-slate-400 mt-1 leading-snug">
-                      Alocado estritamente em um único cômodo físico da propriedade
-                    </span>
-                  </div>
-                </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-white">Cômodo individual</span>
+                        {distributionMode === 'single' && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-4 ring-emerald-500/20" />
+                        )}
+                      </div>
+                      <span className="block text-[11px] text-slate-400 mt-0.5 truncate leading-tight">
+                        Alocado em apenas 1 cômodo físico
+                      </span>
+                    </div>
+                  </button>
 
-                {/* 2. Vários cômodos */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetId = roomId || distributionRows[0]?.room_id || rooms[0]?.id || '';
-                    if (targetId) {
-                      activateMultipleRoomsForRoom(targetId);
-                    } else {
-                      setDistributionMode('multiple');
-                    }
-                  }}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between ${
-                    distributionMode === 'multiple'
-                      ? 'bg-sky-500/15 border-sky-500 text-white shadow-lg shadow-sky-500/10'
-                      : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-3">
+                  {/* Option 2: Vários cômodos */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetId = roomId || distributionRows[0]?.room_id || rooms[0]?.id || '';
+                      if (targetId) {
+                        activateMultipleRoomsForRoom(targetId);
+                      } else {
+                        setDistributionMode('multiple');
+                      }
+                    }}
+                    className={`w-full p-3.5 rounded-2xl border-2 text-left transition-all flex items-center gap-3 ${
+                      distributionMode === 'multiple'
+                        ? 'bg-sky-500/15 border-sky-500 text-white shadow-lg shadow-sky-500/10'
+                        : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                         distributionMode === 'multiple'
                           ? 'bg-sky-500 text-slate-950 font-black'
                           : 'bg-slate-800 text-slate-400'
@@ -1040,37 +1107,37 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
                     >
                       <Layers className="w-5 h-5" />
                     </div>
-                    {distributionMode === 'multiple' && (
-                      <span className="w-3 h-3 rounded-full bg-sky-400 ring-4 ring-sky-500/20" />
-                    )}
-                  </div>
-                  <div>
-                    <span className="block text-sm font-black text-white">Vários cômodos</span>
-                    <span className="block text-[11px] text-slate-400 mt-1 leading-snug">
-                      Reconhece a categoria e distribui entre os cômodos correspondentes
-                    </span>
-                  </div>
-                </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-white">Vários cômodos</span>
+                        {distributionMode === 'multiple' && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-sky-400 ring-4 ring-sky-500/20" />
+                        )}
+                      </div>
+                      <span className="block text-[11px] text-slate-400 mt-0.5 truncate leading-tight">
+                        Por categoria (ex: todos os Quartos)
+                      </span>
+                    </div>
+                  </button>
 
-                {/* 3. Global */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDistributionMode('none');
-                    setRoomId('');
-                    setSelectedFloorPlanCategoryId(null);
-                    setUncategorizedRoomWarning(null);
-                    setDistributionRows([]);
-                  }}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between ${
-                    distributionMode === 'none'
-                      ? 'bg-indigo-500/15 border-indigo-500 text-white shadow-lg shadow-indigo-500/10'
-                      : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-3">
+                  {/* Option 3: Global */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDistributionMode('none');
+                      setRoomId('');
+                      setSelectedFloorPlanCategoryId(null);
+                      setUncategorizedRoomWarning(null);
+                      setDistributionRows([]);
+                    }}
+                    className={`w-full p-3.5 rounded-2xl border-2 text-left transition-all flex items-center gap-3 ${
+                      distributionMode === 'none'
+                        ? 'bg-indigo-500/15 border-indigo-500 text-white shadow-lg shadow-indigo-500/10'
+                        : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                         distributionMode === 'none'
                           ? 'bg-indigo-500 text-white font-black'
                           : 'bg-slate-800 text-slate-400'
@@ -1078,233 +1145,187 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
                     >
                       <Globe className="w-5 h-5" />
                     </div>
-                    {distributionMode === 'none' && (
-                      <span className="w-3 h-3 rounded-full bg-indigo-400 ring-4 ring-indigo-500/20" />
-                    )}
-                  </div>
-                  <div>
-                    <span className="block text-sm font-black text-white">Global</span>
-                    <span className="block text-[11px] text-slate-400 mt-1 leading-snug">
-                      Item geral da propriedade, sem vinculação com cômodo físico
-                    </span>
-                  </div>
-                </button>
-              </div>
-
-              {/* Floor Plan Display for Individual or Multiple */}
-              {distributionMode !== 'none' && (
-                <div className="space-y-3">
-                  <div className="rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner">
-                    <div className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Compass className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span className="text-xs font-black text-white">
-                          Planta da Chácara: Toque para Selecionar
-                        </span>
-                        {distributionMode === 'multiple' && selectedCategoryObj ? (
-                          <span
-                            className="px-2.5 py-0.5 rounded-md text-[10px] font-black border flex items-center gap-1"
-                            style={{
-                              backgroundColor: `${selectedCategoryObj.color || '#38bdf8'}25`,
-                              color: selectedCategoryObj.color || '#38bdf8',
-                              borderColor: `${selectedCategoryObj.color || '#38bdf8'}40`,
-                            }}
-                          >
-                            <Tag className="w-3 h-3" />
-                            Categoria: {selectedCategoryObj.name}
-                          </span>
-                        ) : distributionMode === 'single' && selectedRoomObj ? (
-                          <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-black flex items-center gap-1">
-                            <Home className="w-3 h-3" />
-                            {selectedRoomObj.name}
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setIsFloorPlanExpanded(!isFloorPlanExpanded)}
-                        className="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center gap-1 text-[11px] font-bold transition-colors"
-                      >
-                        <span>{isFloorPlanExpanded ? 'Recolher' : 'Expandir'}</span>
-                        {isFloorPlanExpanded ? (
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        ) : (
-                          <ChevronDown className="w-3.5 h-3.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-white">Global</span>
+                        {distributionMode === 'none' && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 ring-4 ring-indigo-500/20" />
                         )}
-                      </button>
-                    </div>
-
-                    {isFloorPlanExpanded && (
-                      <div className="h-[290px] w-full relative">
-                        <FloorPlanView
-                          rooms={rooms}
-                          roomCategories={roomCategories}
-                          shapes={floorPlanShapes}
-                          mode="selector"
-                          selectedCategoryId={
-                            distributionMode === 'multiple' ? selectedFloorPlanCategoryId : null
-                          }
-                          selectedRoomId={distributionMode === 'single' ? roomId : null}
-                          selectedRoomIds={
-                            distributionMode === 'multiple'
-                              ? distributionRows.map((r) => r.room_id)
-                              : roomId
-                              ? [roomId]
-                              : []
-                          }
-                          onSelectRoom={handleSelectRoomOnFloorPlan}
-                          onSelectCategory={handleSelectCategoryOnFloorPlan}
-                          className="h-full border-0 rounded-none min-h-[290px]"
-                        />
                       </div>
-                    )}
-                  </div>
-
-                  {/* Fallback Selector & Quick-Add Room */}
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex-1 min-w-[200px]">
-                      {showQuickRoom ? (
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="text"
-                            value={quickRoomName}
-                            onChange={(e) => setQuickRoomName(e.target.value)}
-                            placeholder="Nome do novo cômodo (ex: Lavabo)"
-                            className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-emerald-500/60 text-xs text-white focus:outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleQuickCreateRoom}
-                            disabled={isCreatingRoom}
-                            className="px-3 py-2 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold"
-                          >
-                            {isCreatingRoom ? '...' : 'Criar'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowQuickRoom(false)}
-                            className="p-2 rounded-xl bg-slate-800 text-slate-400"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={roomId}
-                            onChange={(e) => {
-                              const selectedId = e.target.value;
-                              if (distributionMode === 'multiple') {
-                                activateMultipleRoomsForRoom(selectedId);
-                              } else {
-                                setRoomId(selectedId);
-                              }
-                            }}
-                            className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-medium focus:border-emerald-500 focus:outline-none"
-                          >
-                            <option value="">Selecione na lista ou na planta...</option>
-                            {rooms.map((r) => (
-                              <option key={r.id} value={r.id}>
-                                {r.name} {r.suite?.name ? `(${r.suite.name})` : ''}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => setShowQuickRoom(true)}
-                            className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1 border border-slate-700 shrink-0"
-                            title="Cadastrar novo cômodo"
-                          >
-                            <Plus className="w-3.5 h-3.5 text-emerald-400" />
-                            <span className="hidden sm:inline">Novo Cômodo</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Context Feedback Card for Individual Room */}
-                  {distributionMode === 'single' && (
-                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 animate-fadeIn">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                          <Check className="w-5 h-5 stroke-[2.5]" />
-                        </div>
-                        <div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
-                            Cômodo Selecionado
-                          </span>
-                          <p className="text-sm font-black text-white">
-                            {selectedRoomObj
-                              ? `${selectedRoomObj.name}${
-                                  selectedRoomObj.suite?.name
-                                    ? ` (${selectedRoomObj.suite.name})`
-                                    : ''
-                                }`
-                              : 'Nenhum cômodo selecionado'}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-[11px] font-semibold text-emerald-300 hidden sm:inline">
-                        Apenas este cômodo receberá o item
+                      <span className="block text-[11px] text-slate-400 mt-0.5 truncate leading-tight">
+                        Sem cômodo específico (geral da chácara)
                       </span>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Contextual Details Panel */}
+                <div className="space-y-3 pt-1">
+                  {/* Single Room Context */}
+                  {distributionMode === 'single' && (
+                    <div className="space-y-3 animate-fadeIn">
+                      <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                            <Check className="w-4 h-4 stroke-[2.5]" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
+                              Cômodo Selecionado
+                            </span>
+                            <p className="text-sm font-black text-white leading-tight">
+                              {selectedRoomObj
+                                ? `${selectedRoomObj.name}${
+                                    selectedRoomObj.suite?.name
+                                      ? ` (${selectedRoomObj.suite.name})`
+                                      : ''
+                                  }`
+                                : 'Toque em um cômodo na planta'}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-slate-300 leading-snug">
+                          Apenas este cômodo receberá o item cadastrado. Toque em outro cômodo na planta ao lado para alterar.
+                        </p>
+                      </div>
+
+                      {/* Dropdown alternative & quick add room */}
+                      <div className="space-y-1.5 p-3 rounded-2xl bg-slate-950/80 border border-slate-800">
+                        <label className="text-[11px] font-bold text-slate-400 block">
+                          Ou escolha na lista de cômodos:
+                        </label>
+                        {showQuickRoom ? (
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              value={quickRoomName}
+                              onChange={(e) => setQuickRoomName(e.target.value)}
+                              placeholder="Nome do cômodo (ex: Lavabo)"
+                              className="flex-1 px-3 py-1.5 rounded-xl bg-slate-900 border border-emerald-500/60 text-xs text-white focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleQuickCreateRoom}
+                              disabled={isCreatingRoom}
+                              className="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold shrink-0"
+                            >
+                              {isCreatingRoom ? '...' : 'Criar'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowQuickRoom(false)}
+                              className="p-1.5 rounded-xl bg-slate-800 text-slate-400 shrink-0"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={roomId}
+                              onChange={(e) => setRoomId(e.target.value)}
+                              className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-medium focus:border-emerald-500 focus:outline-none"
+                            >
+                              <option value="">Selecione um cômodo...</option>
+                              {rooms.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.name} {r.suite?.name ? `(${r.suite.name})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => setShowQuickRoom(true)}
+                              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 shrink-0"
+                              title="Cadastrar novo cômodo"
+                            >
+                              <Plus className="w-4 h-4 text-emerald-400" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
-                  {/* Context Feedback Card for Multiple Rooms */}
+                  {/* Multiple Rooms Context */}
                   {distributionMode === 'multiple' && (
-                    <div className="space-y-2 animate-fadeIn">
+                    <div className="space-y-3 animate-fadeIn">
                       {selectedFloorPlanCategoryId ? (
-                        <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
+                        <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/30 space-y-2.5">
+                          <div className="flex items-center gap-2.5">
                             <div
-                              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-bold"
+                              className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold"
                               style={{
                                 backgroundColor: `${selectedCategoryObj?.color || '#38bdf8'}25`,
                                 color: selectedCategoryObj?.color || '#38bdf8',
                               }}
                             >
-                              <Layers className="w-5 h-5" />
+                              <Layers className="w-4 h-4" />
                             </div>
                             <div>
                               <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">
-                                Categoria: {selectedCategoryObj?.name || 'Categoria'}
+                                Categoria Identificada
                               </span>
-                              <p className="text-sm font-black text-white">
-                                {distributionRows.length} cômodo(s) selecionado(s)
+                              <p className="text-sm font-black text-white leading-tight">
+                                {selectedCategoryObj?.name || 'Categoria'}
                               </p>
                             </div>
                           </div>
-                          <span className="text-[11px] font-semibold text-sky-300 hidden sm:inline">
-                            Você configurará a quantidade de cada cômodo na Etapa 3
-                          </span>
+
+                          <div className="flex items-center justify-between text-xs font-bold text-sky-200 bg-slate-950/70 p-2.5 rounded-xl border border-sky-500/20">
+                            <span>Cômodos selecionados:</span>
+                            <span className="px-2 py-0.5 rounded-md bg-sky-500/20 text-sky-300 font-mono font-black">
+                              {distributionRows.length} cômodos
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                            {distributionRows.map((row) => {
+                              const r = rooms.find((rm) => rm.id === row.room_id);
+                              return (
+                                <span
+                                  key={row.key}
+                                  className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-semibold text-slate-300 flex items-center gap-1"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                                  {r?.name || 'Cômodo'}
+                                </span>
+                              );
+                            })}
+                          </div>
+
+                          <p className="text-[10px] text-slate-400 italic leading-snug">
+                            Toque em outro cômodo na planta para alternar a categoria. As quantidades individuais de cada cômodo serão configuradas na Etapa 3.
+                          </p>
                         </div>
                       ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-400">
-                          Toque em um cômodo na planta acima para reconhecer sua categoria automaticamente.
+                        <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs text-slate-400 space-y-1">
+                          <p className="font-bold text-slate-300">Nenhum cômodo selecionado</p>
+                          <p className="text-[11px] text-slate-400 leading-snug">
+                            Toque em qualquer cômodo na planta ao lado (ex: um quarto) para que o sistema identifique sua categoria e selecione automaticamente todos os cômodos correspondentes.
+                          </p>
                         </div>
                       )}
 
                       {/* Warning if room without category was picked */}
                       {uncategorizedRoomWarning && (
-                        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs space-y-2">
-                          <div className="flex items-start gap-2.5">
+                        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs space-y-2">
+                          <div className="flex items-start gap-2">
                             <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                             <div>
-                              <span className="font-extrabold text-amber-300 block">
-                                Cômodo sem categoria vinculada
+                              <span className="font-bold text-amber-300 block">
+                                Cômodo sem categoria
                               </span>
-                              <p className="text-[11px] text-amber-200/90 mt-0.5">
-                                O cômodo <strong>"{uncategorizedRoomWarning.name}"</strong> não está associado a nenhuma categoria de cômodos (como Quartos ou Banheiros).
+                              <p className="text-[11px] leading-snug">
+                                <strong>"{uncategorizedRoomWarning.name}"</strong> não possui categoria vinculada.
                               </p>
                             </div>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 pl-6">
+                          <div className="flex items-center gap-2 pt-1">
                             <button
                               type="button"
                               onClick={() => setUncategorizedRoomWarning(null)}
-                              className="px-3 py-1 rounded-xl bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/40"
+                              className="flex-1 py-1 rounded-xl bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/40"
                             >
                               Continuar com este cômodo
                             </button>
@@ -1312,10 +1333,10 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
                               <button
                                 type="button"
                                 onClick={onOpenRoomCategories}
-                                className="px-3 py-1 rounded-xl bg-slate-900 text-purple-300 text-[11px] font-bold border border-purple-500/40 flex items-center gap-1"
+                                className="px-2.5 py-1 rounded-xl bg-slate-900 text-purple-300 text-[11px] font-bold border border-purple-500/40 flex items-center gap-1"
                               >
                                 <Tag className="w-3 h-3 text-purple-400" />
-                                Configurar Categorias
+                                <span>Categorias</span>
                               </button>
                             )}
                           </div>
@@ -1323,28 +1344,28 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
                       )}
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* Global Scope Card */}
-              {distributionMode === 'none' && (
-                <div className="p-6 rounded-3xl bg-indigo-950/25 border-2 border-indigo-500/30 text-center space-y-3 animate-fadeIn">
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto shadow-inner">
-                    <Globe className="w-7 h-7" />
-                  </div>
-                  <div className="max-w-md mx-auto space-y-1">
-                    <h4 className="text-base font-black text-white">Item de Escopo Global</h4>
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      Este item pertence ao catálogo geral da chácara e não fica alocado em um cômodo específico.
-                      Não é necessária nenhuma seleção na planta baixa.
-                    </p>
-                  </div>
-                  <div className="pt-2 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Clique em "Continuar" para prosseguir para a foto do item</span>
+                  {/* Global Context */}
+                  {distributionMode === 'none' && (
+                    <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 space-y-2 text-xs animate-fadeIn">
+                      <div className="flex items-center gap-2 text-indigo-400 font-black">
+                        <Globe className="w-4 h-4" />
+                        <span>Escopo Global Ativo</span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        O item pertencerá ao inventário geral da propriedade sem vinculação a cômodo físico específico.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-auto pt-2 hidden lg:block">
+                  <div className="p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/80 text-[11px] text-slate-400 flex items-center gap-2">
+                    <Compass className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>Toque e arraste na planta ao lado para navegar e dar zoom.</span>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
