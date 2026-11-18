@@ -17,15 +17,19 @@ import {
   Maximize2,
   Package,
   Plus,
+  ShieldCheck,
+  Sparkles,
   Tag,
   Trash2,
   X,
+  Zap,
 } from 'lucide-react';
 import {
   deleteRoomAssignment,
   upsertRoomAssignment,
 } from '../services/inventoryService';
 import { CONDITION_OPTIONS, getConditionConfig } from '../lib/conditionUtils';
+import { getInspectionTypeConfig } from '../lib/inspectionTypeUtils';
 import { getInventoryImageUrl } from '../lib/supabase';
 import {
   ConditionStatus,
@@ -249,7 +253,7 @@ export const InventoryItemDetailModal: React.FC<InventoryItemDetailModalProps> =
           </div>
 
           {/* Primary Metadata Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/90">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 <Package className="w-3.5 h-3.5 text-emerald-400" />
@@ -288,6 +292,23 @@ export const InventoryItemDetailModal: React.FC<InventoryItemDetailModalProps> =
                 {isIndividual ? 'Item Individual' : 'Por Quantidade'}
               </p>
             </div>
+
+            {(() => {
+              const inspCfg = getInspectionTypeConfig(item.inspection_type);
+              const InspIcon =
+                inspCfg.iconName === 'Zap' ? Zap : inspCfg.iconName === 'Sparkles' ? Sparkles : ShieldCheck;
+              return (
+                <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/90">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    <InspIcon className={`w-3.5 h-3.5 ${inspCfg.badgeText}`} />
+                    <span>Conferência</span>
+                  </div>
+                  <p className={`mt-1 text-sm font-bold truncate ${inspCfg.badgeText}`}>
+                    {inspCfg.shortLabel}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
 
           {/* DEDICATED SECTION: Distribuição por Cômodo & Estado Físico */}

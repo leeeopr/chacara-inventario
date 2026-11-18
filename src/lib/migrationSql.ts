@@ -711,4 +711,79 @@ BEGIN
     END IF;
   END LOOP;
 END $$;
+
+-- =============================================================================
+-- MIGRATION 0006: INVENTORY INSPECTION TYPES & CHECKLIST INTEGRATION
+-- =============================================================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'inspection_type_enum') THEN
+    CREATE TYPE public.inspection_type_enum AS ENUM ('functionality', 'conservation', 'physical_integrity');
+  END IF;
+END $$;
+
+ALTER TABLE public.inventory_items
+  ADD COLUMN IF NOT EXISTS inspection_type public.inspection_type_enum NOT NULL DEFAULT 'physical_integrity';
+
+ALTER TABLE public.checklist_item_results
+  ADD COLUMN IF NOT EXISTS inspection_type_snapshot TEXT NULL,
+  ADD COLUMN IF NOT EXISTS inspection_answers JSONB NULL;
+
+ALTER TABLE public.checklist_occurrences
+  ADD COLUMN IF NOT EXISTS inspection_type_snapshot TEXT NULL,
+  ADD COLUMN IF NOT EXISTS failed_question TEXT NULL;
+
+-- Intelligent backfill for existing inventory items
+DO $$
+BEGIN
+  -- 1. Functionality (electronics, appliances, equipment)
+  UPDATE public.inventory_items
+  SET inspection_type = 'functionality'
+  WHERE inspection_type = 'physical_integrity'
+    AND (
+      LOWER(name) LIKE '%ventilador%'
+      OR LOWER(name) LIKE '%tv%'
+      OR LOWER(name) LIKE '%televis%'
+      OR LOWER(name) LIKE '%liquidificador%'
+      OR LOWER(name) LIKE '%micro-ondas%'
+      OR LOWER(name) LIKE '%microondas%'
+      OR LOWER(name) LIKE '%batedeira%'
+      OR LOWER(name) LIKE '%cafeteira%'
+      OR LOWER(name) LIKE '%geladeira%'
+      OR LOWER(name) LIKE '%freezer%'
+      OR LOWER(name) LIKE '%fogao%'
+      OR LOWER(name) LIKE '%fogão%'
+      OR LOWER(name) LIKE '%forno%'
+      OR LOWER(name) LIKE '%ar condicionado%'
+      OR LOWER(name) LIKE '%aquecedor%'
+      OR LOWER(name) LIKE '%sanduicheira%'
+      OR LOWER(name) LIKE '%torradeira%'
+      OR LOWER(name) LIKE '%aspirador%'
+      OR LOWER(name) LIKE '%ferro%'
+    );
+
+  -- 2. Conservation (textiles, upholstery, bedding, bath, curtains)
+  UPDATE public.inventory_items
+  SET inspection_type = 'conservation'
+  WHERE inspection_type = 'physical_integrity'
+    AND (
+      LOWER(name) LIKE '%travesseiro%'
+      OR LOWER(name) LIKE '%sofa%'
+      OR LOWER(name) LIKE '%sofá%'
+      OR LOWER(name) LIKE '%colchao%'
+      OR LOWER(name) LIKE '%colchão%'
+      OR LOWER(name) LIKE '%lencol%'
+      OR LOWER(name) LIKE '%lençol%'
+      OR LOWER(name) LIKE '%toalha%'
+      OR LOWER(name) LIKE '%cortina%'
+      OR LOWER(name) LIKE '%edredom%'
+      OR LOWER(name) LIKE '%cobertor%'
+      OR LOWER(name) LIKE '%fronha%'
+      OR LOWER(name) LIKE '%manta%'
+      OR LOWER(name) LIKE '%tapete%'
+      OR LOWER(name) LIKE '%almofada%'
+      OR LOWER(name) LIKE '%pano de prato%'
+    );
+END $$;
 `;

@@ -261,9 +261,15 @@ export const ChecklistHistoryModal: React.FC<ChecklistHistoryModalProps> = ({
                             {occ.description || 'Item reportado com problema'}
                           </p>
 
+                          {occ.failed_question && (
+                            <p className="text-xs text-amber-300 font-bold mt-1 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg">
+                              ⚠️ Pergunta reprovada: "{occ.failed_question}"
+                            </p>
+                          )}
+
                           {occ.missing_quantity > 0 && (
-                            <span className="text-xs text-rose-300 font-bold block mt-0.5">
-                              Quantidade: {occ.missing_quantity} un.
+                            <span className="text-xs text-rose-300 font-bold block mt-1">
+                              Quantidade afetada: {occ.missing_quantity} un.
                             </span>
                           )}
                         </div>

@@ -112,6 +112,8 @@ export interface InventoryCategory {
   created_at: string;
 }
 
+export type InspectionType = 'functionality' | 'conservation' | 'physical_integrity';
+
 export interface InventoryItem {
   id: string;
   name: string;
@@ -122,6 +124,7 @@ export interface InventoryItem {
   expected_quantity: number;
   image_path: string | null;
   description: string | null;
+  inspection_type?: InspectionType;
   created_at: string;
   updated_at: string;
   // Joined relations and multi-room distribution
@@ -146,6 +149,7 @@ export interface CreateInventoryItemInput {
   expected_quantity?: number;
   image_path?: string | null;
   description?: string | null;
+  inspection_type?: InspectionType;
   initial_assignments?: UpsertRoomAssignmentInput[];
 }
 
@@ -158,6 +162,7 @@ export interface UpdateInventoryItemInput {
   expected_quantity?: number;
   image_path?: string | null;
   description?: string | null;
+  inspection_type?: InspectionType;
   assignments?: UpsertRoomAssignmentInput[];
 }
 

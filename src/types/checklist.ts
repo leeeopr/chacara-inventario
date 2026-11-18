@@ -1,4 +1,4 @@
-import { InventoryType, Room } from './inventory';
+import { InspectionType, InventoryType, Room } from './inventory';
 
 export type ChecklistSessionStatus = 'in_progress' | 'completed' | 'canceled';
 export type ChecklistRoomStatus = 'pending' | 'in_progress' | 'completed';
@@ -39,6 +39,8 @@ export interface ChecklistItemResult {
   expected_quantity: number;
   found_quantity: number;
   status: ChecklistItemStatus;
+  inspection_type_snapshot?: InspectionType | null;
+  inspection_answers?: Record<string, boolean> | null;
   notes: string | null;
   inspected_at: string;
 }
@@ -52,6 +54,8 @@ export interface ChecklistOccurrence {
   occurrence_type: ChecklistOccurrenceType;
   missing_quantity: number;
   description: string | null;
+  inspection_type_snapshot?: InspectionType | null;
+  failed_question?: string | null;
   created_at: string;
   room?: Room | null;
   item_name?: string | null;

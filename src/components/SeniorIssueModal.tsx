@@ -14,6 +14,9 @@ import { InventoryItem } from '../types/inventory';
 interface SeniorIssueModalProps {
   isOpen: boolean;
   item: InventoryItem | null;
+  initialOccurrenceType?: ChecklistOccurrenceType;
+  failedQuestion?: string | null;
+  initialTag?: string | null;
   onClose: () => void;
   onConfirm: (data: {
     status: 'missing' | 'damaged';
@@ -21,20 +24,26 @@ interface SeniorIssueModalProps {
     occurrenceType: ChecklistOccurrenceType;
     missingQuantity: number;
     description: string;
+    failedQuestion?: string | null;
   }) => void;
 }
 
 const COMMON_TAGS = [
   'Item sumiu / Não encontrado',
+  'Não funciona / Falha ao ligar',
   'Quebrado / Avariado',
   'Trincado / Rachado',
   'Manchado / Sujo',
+  'Rasgado ou descosturado',
   'Peça faltando / Incompleto',
 ];
 
 export const SeniorIssueModal: React.FC<SeniorIssueModalProps> = ({
   isOpen,
   item,
+  initialOccurrenceType = 'missing',
+  failedQuestion = null,
+  initialTag = null,
   onClose,
   onConfirm,
 }) => {
@@ -43,23 +52,33 @@ export const SeniorIssueModal: React.FC<SeniorIssueModalProps> = ({
   const isQuantity = item.inventory_type === 'quantity';
   const expected = item.expected_quantity;
 
-  const [issueType, setIssueType] = useState<ChecklistOccurrenceType>('missing');
+  const [issueType, setIssueType] = useState<ChecklistOccurrenceType>(initialOccurrenceType);
   const [foundQuantity, setFoundQuantity] = useState<number>(() =>
     isQuantity ? Math.max(0, expected - 1) : 0
   );
-  const [selectedTag, setSelectedTag] = useState<string>('Item sumiu / Não encontrado');
+  const [selectedTag, setSelectedTag] = useState<string>(
+    initialTag || (initialOccurrenceType === 'damaged' ? 'Quebrado / Avariado' : 'Item sumiu / Não encontrado')
+  );
   const [customNote, setCustomNote] = useState<string>('');
 
-  const missingQty = isQuantity ? Math.max(0, expected - foundQuantity) : 1;
+  const missingQty = isQuantity ? Math.max(1, expected - foundQuantity) : 1;
 
   const handleConfirm = () => {
-    const finalDesc = [selectedTag, customNote.trim()].filter(Boolean).join(' - ');
+    const details = [
+      failedQuestion ? `[Pergunta Reprovada: ${failedQuestion}]` : null,
+      selectedTag,
+      customNote.trim(),
+    ]
+      .filter(Boolean)
+      .join(' - ');
+
     onConfirm({
       status: issueType,
       foundQuantity: isQuantity ? foundQuantity : 0,
       occurrenceType: issueType,
       missingQuantity: missingQty,
-      description: finalDesc,
+      description: details,
+      failedQuestion: failedQuestion || null,
     });
   };
 
@@ -96,6 +115,21 @@ export const SeniorIssueModal: React.FC<SeniorIssueModalProps> = ({
 
         {/* Content */}
         <div className="p-5 overflow-y-auto space-y-5">
+          {failedQuestion && (
+            <div className="p-3.5 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 space-y-1 animate-fadeIn">
+              <div className="flex items-center gap-2 text-amber-300 font-extrabold text-xs uppercase tracking-wider">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                <span>Problema Detectado na Conferência</span>
+              </div>
+              <p className="text-sm font-black text-white leading-snug">
+                "{failedQuestion}" → <span className="text-rose-400 font-black">NÃO</span>
+              </p>
+              <p className="text-[11px] text-amber-200/80">
+                O item está presente no cômodo com este problema. Confirme os detalhes abaixo:
+              </p>
+            </div>
+          )}
+
           {/* 1. Escolha do Tipo de Problema */}
           <div>
             <label className="block text-sm font-extrabold text-slate-300 uppercase tracking-wider mb-2">

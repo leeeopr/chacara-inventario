@@ -346,6 +346,9 @@ export interface RecordItemInspectionParams {
   occurrenceType?: ChecklistOccurrenceType | null;
   missingQuantity?: number;
   occurrenceDescription?: string | null;
+  inspectionTypeSnapshot?: InspectionType | null;
+  inspectionAnswers?: Record<string, boolean> | null;
+  failedQuestion?: string | null;
 }
 
 export async function recordItemInspection(
@@ -363,6 +366,9 @@ export async function recordItemInspection(
     occurrenceType = null,
     missingQuantity = 0,
     occurrenceDescription = null,
+    inspectionTypeSnapshot = item.inspection_type || 'physical_integrity',
+    inspectionAnswers = null,
+    failedQuestion = null,
   } = params;
 
   const effectiveRoomId = item.assigned_room_id ?? item.room_id ?? null;
@@ -378,6 +384,8 @@ export async function recordItemInspection(
     expected_quantity: item.expected_quantity,
     found_quantity: foundQuantity,
     status,
+    inspection_type_snapshot: inspectionTypeSnapshot,
+    inspection_answers: inspectionAnswers,
     notes,
     inspected_at: new Date().toISOString(),
   };
@@ -394,7 +402,7 @@ export async function recordItemInspection(
     const supabase = getSupabaseClient();
     try {
       // Upsert item result
-      const { data: resData } = await supabase
+      const { data: resData, error: upsertErr } = await supabase
         .from('checklist_item_results')
         .upsert(resultPayload, {
           onConflict: 'checklist_session_id,inventory_item_id',
@@ -402,7 +410,20 @@ export async function recordItemInspection(
         .select('*')
         .single();
 
-      if (resData) savedResult = resData as ChecklistItemResult;
+      if (!upsertErr && resData) {
+        savedResult = resData as ChecklistItemResult;
+      } else if (upsertErr) {
+        // Fallback without new inspection columns if migration not yet applied in Supabase
+        const { inspection_type_snapshot, inspection_answers, ...legacyPayload } = resultPayload;
+        const { data: legacyResData } = await supabase
+          .from('checklist_item_results')
+          .upsert(legacyPayload, {
+            onConflict: 'checklist_session_id,inventory_item_id',
+          })
+          .select('*')
+          .single();
+        if (legacyResData) savedResult = legacyResData as ChecklistItemResult;
+      }
 
       // Handle occurrence (missing / damaged)
       if (occurrenceType) {
@@ -414,15 +435,28 @@ export async function recordItemInspection(
           occurrence_type: occurrenceType,
           missing_quantity: missingQuantity,
           description: occurrenceDescription || notes || null,
+          inspection_type_snapshot: inspectionTypeSnapshot,
+          failed_question: failedQuestion,
         };
 
-        const { data: occData } = await supabase
+        const { data: occData, error: occErr } = await supabase
           .from('checklist_occurrences')
           .insert(occPayload)
           .select('*, room:rooms(*)')
           .single();
 
-        if (occData) savedOccurrence = occData as ChecklistOccurrence;
+        if (!occErr && occData) {
+          savedOccurrence = occData as ChecklistOccurrence;
+        } else if (occErr) {
+          // Fallback without new columns
+          const { inspection_type_snapshot, failed_question, ...legacyOccPayload } = occPayload;
+          const { data: legacyOccData } = await supabase
+            .from('checklist_occurrences')
+            .insert(legacyOccPayload)
+            .select('*, room:rooms(*)')
+            .single();
+          if (legacyOccData) savedOccurrence = legacyOccData as ChecklistOccurrence;
+        }
       }
     } catch (err) {
       console.warn('Erro ao salvar resultado no Supabase, mantendo cache local:', err);
@@ -448,6 +482,8 @@ export async function recordItemInspection(
         occurrence_type: occurrenceType,
         missing_quantity: missingQuantity,
         description: occurrenceDescription || notes || null,
+        inspection_type_snapshot: inspectionTypeSnapshot,
+        failed_question: failedQuestion,
         created_at: new Date().toISOString(),
         item_name: item.name,
       };

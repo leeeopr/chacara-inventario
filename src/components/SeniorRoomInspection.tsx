@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -13,11 +13,17 @@ import {
   Layers,
   Package,
   RotateCcw,
+  ShieldCheck,
   Sparkles,
   Tag,
   X,
+  Zap,
 } from 'lucide-react';
 import { getConditionConfig } from '../lib/conditionUtils';
+import {
+  getInspectionTypeConfig,
+  InspectionType,
+} from '../lib/inspectionTypeUtils';
 import { getInventoryImageUrl } from '../lib/supabase';
 import { ChecklistItemResult, ChecklistOccurrence } from '../types/checklist';
 import { InventoryItem, Room } from '../types/inventory';
@@ -41,6 +47,9 @@ interface SeniorRoomInspectionProps {
     occurrenceType?: 'missing' | 'damaged' | null;
     missingQuantity?: number;
     occurrenceDescription?: string | null;
+    inspectionTypeSnapshot?: InspectionType | null;
+    inspectionAnswers?: Record<string, boolean> | null;
+    failedQuestion?: string | null;
   }) => Promise<void>;
   onCompleteRoom: (roomId: string) => Promise<void>;
   onNavigateToRoom: (nextRoom: Room) => void;
@@ -80,6 +89,13 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Sequential question state
+  const [questionIndex, setQuestionIndex] = useState<number>(0);
+  const [inspectionAnswers, setInspectionAnswers] = useState<Record<string, boolean>>({});
+  const [activeFailedQuestion, setActiveFailedQuestion] = useState<string | null>(null);
+  const [issueModalInitialType, setIssueModalInitialType] = useState<'missing' | 'damaged'>('missing');
+  const [issueModalInitialTag, setIssueModalInitialTag] = useState<string | null>(null);
+
   // Modals
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [isQuantityModalOpen, setIsQuantityModalOpen] = useState(false);
@@ -97,6 +113,28 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
   const isIndividual = currentItem?.inventory_type === 'individual';
   const imageUrl = currentItem ? getInventoryImageUrl(currentItem.image_path) : null;
   const currentResult = currentItem ? inspectedMap.get(currentItem.id) : null;
+
+  // Active item inspection configuration
+  const currentInspectionConfig = useMemo(() => {
+    return getInspectionTypeConfig(currentItem?.inspection_type);
+  }, [currentItem?.inspection_type]);
+
+  const currentQuestion =
+    currentInspectionConfig.questions[questionIndex] || currentInspectionConfig.questions[0];
+
+  const InspectionIcon =
+    currentInspectionConfig.iconName === 'Zap'
+      ? Zap
+      : currentInspectionConfig.iconName === 'Sparkles'
+      ? Sparkles
+      : ShieldCheck;
+
+  // Reset question flow whenever currentItem changes
+  useEffect(() => {
+    setQuestionIndex(0);
+    setInspectionAnswers({});
+    setActiveFailedQuestion(null);
+  }, [currentIndex]);
 
   // Total progression in this room
   const inspectedInRoomCount = useMemo(() => {
@@ -148,24 +186,56 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
     }
   };
 
-  // Primary Action: Item Found
-  const handleFound = async () => {
+  // Answer SIM for the current question
+  const handleAnswerSim = async () => {
     if (!currentItem || isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      await onRecordInspection({
-        item: currentItem,
-        status: 'found',
-        foundQuantity: currentItem.expected_quantity,
-        notes: null,
-      });
-      await advanceToNext();
-    } finally {
-      setIsSubmitting(false);
+
+    const updatedAnswers = {
+      ...inspectionAnswers,
+      [currentQuestion.id]: true,
+    };
+    setInspectionAnswers(updatedAnswers);
+
+    if (questionIndex < currentInspectionConfig.questions.length - 1) {
+      setQuestionIndex((prev) => prev + 1);
+    } else {
+      // All questions passed with SIM! Confirm item as found & approved
+      setIsSubmitting(true);
+      try {
+        await onRecordInspection({
+          item: currentItem,
+          status: 'found',
+          foundQuantity: currentItem.expected_quantity,
+          notes: null,
+          inspectionTypeSnapshot: currentInspectionConfig.type,
+          inspectionAnswers: updatedAnswers,
+        });
+        await advanceToNext();
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
-  // Quantity partial found confirmation
+  // Answer NÃO for the current question
+  const handleAnswerNao = () => {
+    if (!currentItem) return;
+    setActiveFailedQuestion(currentQuestion.question);
+    setIssueModalInitialType('damaged');
+    setIssueModalInitialTag(currentQuestion.shortTag);
+    setIsIssueModalOpen(true);
+  };
+
+  // Explicit action for physically missing item
+  const handleItemMissing = () => {
+    if (!currentItem) return;
+    setActiveFailedQuestion(null);
+    setIssueModalInitialType('missing');
+    setIssueModalInitialTag('Item sumiu / Não encontrado');
+    setIsIssueModalOpen(true);
+  };
+
+  // Quantity partial found confirmation ("Falta Algum")
   const handleQuantityConfirmed = async (foundQty: number, missingQty: number) => {
     if (!currentItem || isSubmitting) return;
     setIsQuantityModalOpen(false);
@@ -182,6 +252,8 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
         occurrenceDescription: isFull
           ? null
           : `Faltando ${missingQty} unidade(s) de ${currentItem.expected_quantity}`,
+        inspectionTypeSnapshot: currentInspectionConfig.type,
+        inspectionAnswers,
       });
       await advanceToNext();
     } finally {
@@ -196,6 +268,7 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
     occurrenceType: 'missing' | 'damaged';
     missingQuantity: number;
     description: string;
+    failedQuestion?: string | null;
   }) => {
     if (!currentItem || isSubmitting) return;
     setIsIssueModalOpen(false);
@@ -209,6 +282,12 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
         occurrenceType: data.occurrenceType,
         missingQuantity: data.missingQuantity,
         occurrenceDescription: data.description,
+        inspectionTypeSnapshot: currentInspectionConfig.type,
+        inspectionAnswers: {
+          ...inspectionAnswers,
+          ...(data.failedQuestion ? { [currentQuestion.id]: false } : {}),
+        },
+        failedQuestion: data.failedQuestion || activeFailedQuestion || null,
       });
       await advanceToNext();
     } finally {
@@ -425,67 +504,132 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
               </div>
             </div>
 
-            {/* Giant Touch Buttons - Senior Friendly */}
-            <div className="space-y-3 pt-2">
-              {isIndividual ? (
-                /* Individual Item Actions */
-                <>
-                  <button
-                    type="button"
-                    onClick={handleFound}
-                    disabled={isSubmitting}
-                    className="w-full py-5 sm:py-6 rounded-3xl bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 font-black text-2xl sm:text-3xl flex items-center justify-center gap-3.5 shadow-2xl shadow-emerald-500/30 transition-all border-b-4 border-emerald-600 disabled:opacity-50"
+            {/* Sequential Inspection Question & Actions Area */}
+            <div className="space-y-3 pt-1">
+              {/* Inspection Type & Question Step Header */}
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${currentInspectionConfig.badgeBg} ${currentInspectionConfig.badgeText} border ${currentInspectionConfig.badgeBorder}`}
                   >
-                    <CheckCircle2 className="w-9 h-9 stroke-[3]" />
-                    <span>ENCONTRADO</span>
-                  </button>
+                    <InspectionIcon className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block truncate">
+                      Roteiro de Conferência
+                    </span>
+                    <span className={`text-xs sm:text-sm font-black truncate block ${currentInspectionConfig.badgeText}`}>
+                      {currentInspectionConfig.badgeLabel}
+                    </span>
+                  </div>
+                </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsIssueModalOpen(true)}
-                    disabled={isSubmitting}
-                    className="w-full py-4 rounded-2xl bg-slate-900 hover:bg-rose-950/30 active:scale-98 text-rose-300 hover:text-rose-200 font-extrabold text-base sm:text-lg flex items-center justify-center gap-2.5 border-2 border-rose-500/40 transition-all"
-                  >
-                    <AlertTriangle className="w-6 h-6 stroke-[2.5]" />
-                    <span>FALTA OU ESTÁ DANIFICADO</span>
-                  </button>
-                </>
-              ) : (
-                /* Quantity-Based Item Actions */
-                <>
-                  <button
-                    type="button"
-                    onClick={handleFound}
-                    disabled={isSubmitting}
-                    className="w-full py-5 sm:py-6 rounded-3xl bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 font-black text-xl sm:text-2xl flex items-center justify-center gap-3 shadow-2xl shadow-emerald-500/30 transition-all border-b-4 border-emerald-600 disabled:opacity-50"
-                  >
-                    <CheckCircle2 className="w-8 h-8 stroke-[3]" />
-                    <span>OS {currentItem.expected_quantity} ESTÃO AQUI</span>
-                  </button>
+                {/* 3 Step Pills */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {currentInspectionConfig.questions.map((q, idx) => {
+                    const isDone = idx < questionIndex;
+                    const isCurrent = idx === questionIndex;
+                    return (
+                      <div
+                        key={q.id}
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black transition-all ${
+                          isDone
+                            ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/20'
+                            : isCurrent
+                            ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-400/50 scale-105 shadow-md shadow-amber-400/20'
+                            : 'bg-slate-800 text-slate-500'
+                        }`}
+                        title={`Pergunta ${idx + 1}: ${q.question}`}
+                      >
+                        {isDone ? <Check className="w-4 h-4 stroke-[3]" /> : idx + 1}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+              {/* Active Question Box */}
+              <div className="rounded-3xl bg-slate-900 border-2 border-slate-700/80 p-5 sm:p-6 space-y-3 shadow-2xl relative">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-amber-400">
+                    Pergunta {questionIndex + 1} de {currentInspectionConfig.questions.length}
+                  </span>
+
+                  {questionIndex > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setQuestionIndex((prev) => Math.max(0, prev - 1))}
+                      className="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1 py-1 px-2.5 rounded-lg bg-slate-800 border border-slate-700 transition-colors"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      <span>Pergunta anterior</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="text-xl sm:text-2xl font-black text-white leading-snug">
+                    {currentQuestion.question}
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    {currentInspectionConfig.description}
+                  </p>
+                </div>
+              </div>
+
+              {/* Giant Senior-Friendly Touch Buttons */}
+              <div className="space-y-3 pt-1">
+                {/* SIM Button */}
+                <button
+                  type="button"
+                  onClick={handleAnswerSim}
+                  disabled={isSubmitting}
+                  className="w-full py-5 sm:py-6 rounded-3xl bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 font-black text-2xl sm:text-3xl flex items-center justify-center gap-3.5 shadow-2xl shadow-emerald-500/30 transition-all border-b-4 border-emerald-600 disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-9 h-9 stroke-[3]" />
+                  <span>
+                    {questionIndex < currentInspectionConfig.questions.length - 1
+                      ? 'SIM (CONTINUAR)'
+                      : 'SIM (APROVADO)'}
+                  </span>
+                </button>
+
+                {/* NÃO Button */}
+                <button
+                  type="button"
+                  onClick={handleAnswerNao}
+                  disabled={isSubmitting}
+                  className="w-full py-4 sm:py-5 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 active:scale-98 text-rose-300 hover:text-white font-black text-base sm:text-lg flex items-center justify-center gap-2.5 border-2 border-rose-500/50 shadow-lg shadow-rose-950/30 transition-all"
+                >
+                  <AlertTriangle className="w-6 h-6 stroke-[2.5] text-rose-400" />
+                  <span>NÃO (COM PROBLEMA / DEFEITO)</span>
+                </button>
+
+                {/* Secondary Actions */}
+                <div className="pt-1 flex items-center justify-between gap-2.5">
+                  {!isIndividual && (
                     <button
                       type="button"
                       onClick={() => setIsQuantityModalOpen(true)}
                       disabled={isSubmitting}
-                      className="py-4 rounded-2xl bg-slate-900 hover:bg-amber-950/30 text-amber-300 font-black text-base sm:text-lg flex items-center justify-center gap-2 border-2 border-amber-500/40 transition-all"
+                      className="flex-1 py-3 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 active:scale-98 text-amber-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-slate-800 transition-colors"
                     >
-                      <Layers className="w-5 h-5" />
-                      <span>FALTA ALGUM</span>
+                      <Layers className="w-4 h-4" />
+                      <span>Falta Alguma Unidade</span>
                     </button>
+                  )}
 
-                    <button
-                      type="button"
-                      onClick={() => setIsIssueModalOpen(true)}
-                      disabled={isSubmitting}
-                      className="py-4 rounded-2xl bg-slate-900 hover:bg-rose-950/30 text-rose-300 font-black text-base sm:text-lg flex items-center justify-center gap-2 border-2 border-rose-500/40 transition-all"
-                    >
-                      <AlertTriangle className="w-5 h-5" />
-                      <span>DANIFICADO</span>
-                    </button>
-                  </div>
-                </>
-              )}
+                  <button
+                    type="button"
+                    onClick={handleItemMissing}
+                    disabled={isSubmitting}
+                    className="flex-1 py-3 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 active:scale-98 text-slate-400 hover:text-rose-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-slate-800 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    <span>Item não está no cômodo</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -495,6 +639,9 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
       <SeniorIssueModal
         isOpen={isIssueModalOpen}
         item={currentItem}
+        initialOccurrenceType={issueModalInitialType}
+        failedQuestion={activeFailedQuestion}
+        initialTag={issueModalInitialTag}
         onClose={() => setIsIssueModalOpen(false)}
         onConfirm={handleIssueConfirmed}
       />

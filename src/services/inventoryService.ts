@@ -1221,6 +1221,7 @@ const ITEM_SELECT_QUERY = `
   expected_quantity,
   image_path,
   description,
+  inspection_type,
   created_at,
   updated_at,
   room:rooms(id, name, created_at, suite_id, room_type),
@@ -1274,6 +1275,7 @@ function normalizeJoinedItem(raw: any): InventoryItem {
 
   return {
     ...raw,
+    inspection_type: raw.inspection_type || 'physical_integrity',
     room,
     category,
     room_assignments: assignments,
@@ -1296,7 +1298,7 @@ export async function fetchInventoryItems(): Promise<InventoryItem[]> {
     if (String(error.message || '').includes('inventory_room_assignments') || error.code === 'PGRST200') {
       const fallbackQuery = `
         id, name, identification_code, room_id, category_id, inventory_type,
-        expected_quantity, image_path, description, created_at, updated_at,
+        expected_quantity, image_path, description, inspection_type, created_at, updated_at,
         room:rooms(id, name, created_at),
         category:inventory_categories(id, name, created_at)
       `;
@@ -1376,6 +1378,7 @@ export async function createInventoryItem(input: CreateInventoryItemInput): Prom
     expected_quantity: Math.max(1, totalQty),
     image_path: input.image_path || null,
     description: input.description?.trim() || null,
+    inspection_type: input.inspection_type || 'physical_integrity',
   };
 
   const { data, error } = await supabase
@@ -1445,6 +1448,7 @@ export async function createInventoryItemsBatch(
     expected_quantity: input.expected_quantity || 1,
     image_path: input.image_path || null,
     description: input.description?.trim() || null,
+    inspection_type: input.inspection_type || 'physical_integrity',
   }));
 
   const supabase = getSupabaseClient();
@@ -1481,6 +1485,10 @@ export async function updateInventoryItem(
 
   if (input.inventory_type !== undefined) {
     updates.inventory_type = input.inventory_type;
+  }
+
+  if (input.inspection_type !== undefined) {
+    updates.inspection_type = input.inspection_type;
   }
 
   if (input.expected_quantity !== undefined) {

@@ -20,6 +20,7 @@ import {
   Plus,
   RefreshCw,
   Settings2,
+  ShieldCheck,
   Sparkles,
   Split,
   Tag,
@@ -27,6 +28,7 @@ import {
   Upload,
   Video,
   X,
+  Zap,
 } from 'lucide-react';
 import {
   generateNextCodes,
@@ -42,6 +44,10 @@ import {
   compressImageForUpload,
   formatBytes,
 } from '../lib/imageCompression';
+import {
+  INSPECTION_TYPE_OPTIONS,
+  InspectionType,
+} from '../lib/inspectionTypeUtils';
 import { getInventoryImageUrl } from '../lib/supabase';
 import {
   createCategory,
@@ -129,6 +135,7 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [inventoryType, setInventoryType] = useState<InventoryType>('individual');
+  const [inspectionType, setInspectionType] = useState<InspectionType>('physical_integrity');
   const [expectedQuantity, setExpectedQuantity] = useState<number>(1);
   const [identificationCode, setIdentificationCode] = useState('');
   const [customCodeEdited, setCustomCodeEdited] = useState(false);
@@ -188,6 +195,7 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
     setName('');
     setCategoryId('');
     setInventoryType('individual');
+    setInspectionType('physical_integrity');
     setCustomCodeEdited(false);
     setDescription('');
     setBatchGenerateIndividual(true);
@@ -240,6 +248,7 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
       setName(editingItem.name);
       setCategoryId(editingItem.category_id || '');
       setInventoryType(editingItem.inventory_type);
+      setInspectionType(editingItem.inspection_type || 'physical_integrity');
       setIdentificationCode(editingItem.identification_code || '');
       setCustomCodeEdited(true);
       setExistingImagePath(editingItem.image_path || null);
@@ -711,6 +720,7 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
           room_id: targetRoomId,
           category_id: categoryId || null,
           inventory_type: inventoryType,
+          inspection_type: inspectionType,
           expected_quantity: effectiveTotalQuantity,
           identification_code:
             inventoryType === 'individual'
@@ -744,6 +754,7 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
           room_id: targetRoomId,
           category_id: categoryId || null,
           inventory_type: 'individual' as InventoryType,
+          inspection_type: inspectionType,
           expected_quantity: 1,
           image_path: finalImagePath,
           description: description.trim() || null,
@@ -772,6 +783,7 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
           room_id: targetRoomId,
           category_id: categoryId || null,
           inventory_type: inventoryType,
+          inspection_type: inspectionType,
           expected_quantity: effectiveTotalQuantity,
           image_path: finalImagePath,
           description: description.trim() || null,
@@ -1829,10 +1841,85 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
                 )}
               </div>
 
-              {/* Group 3: Quantities, Distribution & Physical Condition */}
+              {/* Group 3: Inspection Types (Perguntas de Conferência no Checklist) */}
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-4">
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-300 block">
+                      3. Tipo de Conferência no Checklist *
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-md border border-emerald-500/20">
+                      Perguntas Guiadas
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                    Define qual roteiro de perguntas simples a pessoa responsável pelo checklist verá no celular ao conferir este item.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {INSPECTION_TYPE_OPTIONS.map((opt) => {
+                    const isSelected = inspectionType === opt.type;
+                    const IconComponent =
+                      opt.iconName === 'Zap' ? Zap : opt.iconName === 'Sparkles' ? Sparkles : ShieldCheck;
+
+                    return (
+                      <button
+                        key={opt.type}
+                        type="button"
+                        onClick={() => setInspectionType(opt.type)}
+                        className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-3 relative ${
+                          isSelected
+                            ? `${opt.badgeBg} ${opt.badgeBorder} shadow-lg shadow-black/40`
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center shadow">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                              isSelected
+                                ? `${opt.badgeText} bg-slate-900 border border-current`
+                                : 'bg-slate-900 text-slate-500 border border-slate-800'
+                            }`}
+                          >
+                            <IconComponent className="w-5 h-5" />
+                          </div>
+
+                          <div>
+                            <span
+                              className={`block text-xs font-black uppercase tracking-wider ${
+                                isSelected ? opt.badgeText : 'text-white'
+                              }`}
+                            >
+                              {opt.title}
+                            </span>
+                            <span className="block text-[11px] text-slate-300 mt-1 leading-snug">
+                              {opt.description}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-800/80">
+                          <span className="block text-[10px] text-slate-400 italic leading-tight">
+                            Ex: {opt.detailedScope}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Group 4: Quantities, Distribution & Physical Condition */}
               <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-4">
                 <span className="text-xs font-black uppercase tracking-wider text-slate-300 block">
-                  3. Quantidade e Estado Físico de Conservação
+                  4. Quantidade e Estado Físico de Conservação
                 </span>
 
                 {/* 3.1 INDIVIDUAL ROOM FIELDS */}

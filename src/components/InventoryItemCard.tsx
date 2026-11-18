@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { getConditionConfig } from '../lib/conditionUtils';
+import { getInspectionTypeConfig } from '../lib/inspectionTypeUtils';
 import { getInventoryImageUrl } from '../lib/supabase';
 import { InventoryItem } from '../types/inventory';
 
@@ -181,6 +182,19 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = ({
                 <span className="truncate max-w-[130px]">{item.category.name}</span>
               </span>
             )}
+
+            {(() => {
+              const insp = getInspectionTypeConfig(item.inspection_type);
+              return (
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs border ${insp.badgeBg} ${insp.badgeBorder} ${insp.badgeText}`}
+                  title={`Tipo de conferência: ${insp.title}`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${insp.dotColor}`} />
+                  <span className="truncate max-w-[110px]">{insp.shortLabel}</span>
+                </span>
+              );
+            })()}
           </div>
 
           {item.description && (

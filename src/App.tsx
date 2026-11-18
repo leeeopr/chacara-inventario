@@ -286,6 +286,9 @@ export function App() {
     occurrenceType?: 'missing' | 'damaged' | null;
     missingQuantity?: number;
     occurrenceDescription?: string | null;
+    inspectionTypeSnapshot?: InspectionType | null;
+    inspectionAnswers?: Record<string, boolean> | null;
+    failedQuestion?: string | null;
   }) => {
     if (!activeSession) return;
 
