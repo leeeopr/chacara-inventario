@@ -1,0 +1,9 @@
+{
+  "appId": "br.com.chacara.inventario",
+  "appName": "Chácara Inventário",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

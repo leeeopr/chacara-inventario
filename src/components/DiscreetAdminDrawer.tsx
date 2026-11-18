@@ -1,0 +1,340 @@
+import React from 'react';
+import {
+  ArrowUpDown,
+  Boxes,
+  Compass,
+  Database,
+  FolderTree,
+  Hash,
+  History,
+  Home,
+  Plus,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  X,
+} from 'lucide-react';
+
+interface DiscreetAdminDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onOpenInventory: () => void;
+  onOpenFloorPlan: () => void;
+  onOpenRooms: () => void;
+  onOpenRoomCategories: () => void;
+  onOpenRoomOrder: () => void;
+  onOpenCategories: () => void;
+  onOpenPrefixes: () => void;
+  onOpenSupabase: () => void;
+  onOpenHistory: () => void;
+  onStartNewInspection: () => void;
+  onOpenOtaSettings?: () => void;
+}
+
+export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
+  isOpen,
+  onClose,
+  onOpenInventory,
+  onOpenFloorPlan,
+  onOpenRooms,
+  onOpenRoomCategories,
+  onOpenRoomOrder,
+  onOpenCategories,
+  onOpenPrefixes,
+  onOpenSupabase,
+  onOpenHistory,
+  onStartNewInspection,
+  onOpenOtaSettings,
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[80] flex justify-end bg-black/80 backdrop-blur-sm animate-fadeIn">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm h-full bg-slate-900 border-l border-slate-800 p-5 flex flex-col justify-between shadow-2xl overflow-y-auto"
+      >
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">Menu do Proprietário</h3>
+                <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                  Área Administrativa
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Checklist Actions */}
+          <div className="space-y-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 px-2 block">
+              Ações da Vistoria
+            </span>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onStartNewInspection();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Iniciar Nova Conferência
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Começar checklist de novo checkout
+                </span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenHistory();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                <History className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Histórico de Vistorias
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Ver relatórios anteriores e danos
+                </span>
+              </div>
+            </button>
+          </div>
+
+          {/* Admin Management Section */}
+          <div className="space-y-2 pt-2 border-t border-slate-800">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 px-2 block">
+              Gestão de Propriedade & Itens
+            </span>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenInventory();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <Boxes className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Gestão do Inventário
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Cadastrar, editar ou remover itens
+                </span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenFloorPlan();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center shrink-0">
+                <Compass className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Planta da Chácara
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Visualizar e editar a planta baixa 2D
+                </span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenRooms();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <Home className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Gerenciar Cômodos
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Criar ou renomear ambientes e suítes
+                </span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenRoomCategories();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center shrink-0">
+                <FolderTree className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Categorias de Cômodos
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Quartos, Banheiros, Áreas Sociais, etc.
+                </span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenRoomOrder();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
+                <ArrowUpDown className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Ordem dos Cômodos
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Definir sequência de vistoria
+                </span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenCategories();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+                <Tag className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Gerenciar Categorias
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Grupos de utensílios e móveis
+                </span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenPrefixes();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
+                <Hash className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Gerador de Códigos
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Prefixos TG, TM, TP e regras
+                </span>
+              </div>
+            </button>
+          </div>
+
+          {/* Database / Cloud Settings */}
+          <div className="pt-2 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenSupabase();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Banco & Nuvem (Supabase)
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Configurar credenciais e SQL
+                </span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenOtaSettings?.();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors mt-2"
+            >
+              <div className="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Atualizações do App (OTA)
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Verificar versão e releases no GitHub
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Footer info */}
+        <div className="pt-4 border-t border-slate-800 text-center">
+          <p className="text-[11px] font-bold text-slate-500">
+            Chácara Inventário & Checklist v2.0
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
