@@ -57,7 +57,7 @@ echo "✅ APK gerado com sucesso ($APK_SIZE) em: $APK_FILE"
 
 # 4. Commit e Push no Git (apenas no repositório chacara-inventario)
 echo "📤 Atualizando repositório Git..."
-git add package.json package-lock.json android/app/build.gradle android/app/src/main/
+git add -A
 git commit -m "chore(release): bump version to $TARGET_VERSION" || echo "Sem mudanças para commitar."
 git push origin main
 

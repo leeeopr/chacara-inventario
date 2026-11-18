@@ -387,7 +387,7 @@ export const FloorPlanView: React.FC<FloorPlanViewProps> = ({
     setPan({ x: 0, y: 0 });
   };
 
-  // Fit all shapes into visible screen
+  // Fit all shapes into visible screen with minimal padding to maximize room visibility
   const handleFitToScreen = useCallback(() => {
     if (localShapes.length === 0 || !containerRef.current) return;
     const minX = Math.min(...localShapes.map((s) => s.x));
@@ -395,7 +395,8 @@ export const FloorPlanView: React.FC<FloorPlanViewProps> = ({
     const maxX = Math.max(...localShapes.map((s) => s.x + s.width), 300);
     const maxY = Math.max(...localShapes.map((s) => s.y + s.height), 200);
 
-    const padding = 70;
+    // Tight padding to maximize room size and eliminate excessive empty space around the floor plan
+    const padding = 24;
     const contentW = Math.max(maxX - minX + padding * 2, 200);
     const contentH = Math.max(maxY - minY + padding * 2, 200);
 
@@ -404,7 +405,7 @@ export const FloorPlanView: React.FC<FloorPlanViewProps> = ({
 
     const scaleX = clientWidth / contentW;
     const scaleY = clientHeight / contentH;
-    const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 1.6);
+    const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 2.2);
 
     setZoom(newScale);
     setPan({
@@ -413,11 +414,42 @@ export const FloorPlanView: React.FC<FloorPlanViewProps> = ({
     });
   }, [localShapes]);
 
-  // Initial fit to screen on mount
+  // Initial fit to screen and responsive container resize observation
+  const lastContainerSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
   useEffect(() => {
-    const t = setTimeout(() => handleFitToScreen(), 120);
-    return () => clearTimeout(t);
-  }, []);
+    handleFitToScreen();
+    const t1 = setTimeout(() => handleFitToScreen(), 80);
+    const t2 = setTimeout(() => handleFitToScreen(), 250);
+
+    const container = containerRef.current;
+    if (!container) {
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const w = Math.round(entry.contentRect.width);
+          const h = Math.round(entry.contentRect.height);
+          if (w > 0 && h > 0 && (w !== lastContainerSizeRef.current.w || h !== lastContainerSizeRef.current.h)) {
+            lastContainerSizeRef.current = { w, h };
+            handleFitToScreen();
+          }
+        }
+      });
+      ro.observe(container);
+    }
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      if (ro) ro.disconnect();
+    };
+  }, [handleFitToScreen]);
 
   // Mouse wheel zoom (focus follows mouse pointer)
   const handleWheel = (e: React.WheelEvent) => {

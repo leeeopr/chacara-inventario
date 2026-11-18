@@ -805,7 +805,11 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-sm overflow-y-auto">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-3xl rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden my-auto flex flex-col max-h-[95vh]"
+        className={`w-full ${
+          currentStep === 1
+            ? 'max-w-7xl 2xl:max-w-[1500px] h-[92vh] max-h-[95vh]'
+            : 'max-w-3xl max-h-[95vh]'
+        } rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden my-auto flex flex-col transition-all duration-200`}
       >
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/95">
@@ -969,7 +973,7 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
           {currentStep === 1 && (
             <div className="h-full flex flex-col lg:grid lg:grid-cols-12 gap-5 animate-fadeIn min-h-0">
               {/* LEFT COLUMN: 2/3 Interactive Floor Plan (8 cols of 12 = 66.67%) */}
-              <div className="order-2 lg:order-1 lg:col-span-8 flex flex-col h-[500px] lg:h-full min-h-[460px] rounded-3xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner relative">
+              <div className="order-1 lg:order-1 lg:col-span-8 flex flex-col h-[520px] sm:h-[600px] lg:h-full min-h-[480px] rounded-3xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner relative">
                 {distributionMode !== 'none' ? (
                   <FloorPlanView
                     key={`floorplan-selector-${distributionMode}`}
@@ -1025,7 +1029,7 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
               </div>
 
               {/* RIGHT COLUMN: 1/3 Selection Options & Context Panel (4 cols of 12 = 33.33%) */}
-              <div className="order-1 lg:order-2 lg:col-span-4 flex flex-col gap-3.5 overflow-y-auto pr-1">
+              <div className="order-2 lg:order-2 lg:col-span-4 flex flex-col gap-3.5 overflow-y-auto pr-1">
                 {/* Header */}
                 <div className="space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
