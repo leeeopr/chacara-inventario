@@ -1,11 +1,14 @@
 package br.com.chacara.inventario;
 
+import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.provider.Settings;
 import android.util.Log;
 
@@ -22,6 +25,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
 
 @CapacitorPlugin(name = "AppUpdater")
 public class AppUpdaterPlugin extends Plugin {
@@ -101,7 +105,11 @@ public class AppUpdaterPlugin extends Plugin {
 
             try {
                 Context context = getContext();
-                File updateDir = new File(context.getCacheDir(), "updates");
+                // Prefer external files dir (Download) so package installer can read easily
+                File updateDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                if (updateDir == null) {
+                    updateDir = new File(context.getCacheDir(), "updates");
+                }
                 if (!updateDir.exists()) {
                     updateDir.mkdirs();
                 }
@@ -129,7 +137,7 @@ public class AppUpdaterPlugin extends Plugin {
                 connection.setReadTimeout(30000);
                 connection.connect();
 
-                // Handle HTTP redirects (GitHub releases assets redirect to AWS S3)
+                // Handle HTTP redirects (GitHub releases assets redirect to AWS S3/Azure Blob)
                 int responseCode = connection.getResponseCode();
                 int redirectCount = 0;
                 while ((responseCode == HttpURLConnection.HTTP_MOVED_PERM ||
@@ -138,8 +146,9 @@ public class AppUpdaterPlugin extends Plugin {
                         responseCode == 307 || responseCode == 308) && redirectCount < 5) {
                     String redirectUrl = connection.getHeaderField("Location");
                     connection.disconnect();
-                    url = new URL(redirectUrl);
+                    url = new URL(url, redirectUrl);
                     connection = (HttpURLConnection) url.openConnection();
+                    connection.setInstanceFollowRedirects(true);
                     connection.setRequestProperty("User-Agent", "Chacara-Inventario-OTA");
                     connection.setConnectTimeout(30000);
                     connection.setReadTimeout(30000);
@@ -179,6 +188,7 @@ public class AppUpdaterPlugin extends Plugin {
                 }
 
                 output.flush();
+                targetFile.setReadable(true, false);
 
                 JSObject progress = new JSObject();
                 progress.put("percent", 100);
@@ -220,6 +230,9 @@ public class AppUpdaterPlugin extends Plugin {
                 return;
             }
 
+            // Ensure world-readable permissions
+            apkFile.setReadable(true, false);
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 if (!context.getPackageManager().canRequestPackageInstalls()) {
                     Intent settingsIntent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
@@ -243,8 +256,16 @@ public class AppUpdaterPlugin extends Plugin {
 
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+            intent.setClipData(ClipData.newRawUri("", apkUri));
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+
+            List<ResolveInfo> resInfoList = context.getPackageManager().queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
+            for (ResolveInfo resolveInfo : resInfoList) {
+                String packageName = resolveInfo.activityInfo.packageName;
+                context.grantUriPermission(packageName, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
 
             context.startActivity(intent);
 

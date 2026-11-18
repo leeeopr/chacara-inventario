@@ -1,13 +1,15 @@
 {
   "name": "chacara-inventario-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Sistema de Gestão Dinâmica de Inventário de Propriedade / Chácara",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "cap:sync": "npx cap sync android"
+    "cap:sync": "npx cap sync android",
+    "build:apk": "./build-apk.sh",
+    "release": "./publish-release.sh"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.2",
