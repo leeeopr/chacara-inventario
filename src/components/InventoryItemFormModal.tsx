@@ -971,9 +971,9 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
               STEP 1: LOCAL DE APLICAÇÃO (2/3 PLANTA À ESQUERDA, 1/3 PAINEL À DIREITA)
              ========================================================================= */}
           {currentStep === 1 && (
-            <div className="h-full flex flex-col lg:grid lg:grid-cols-12 gap-5 animate-fadeIn min-h-0">
-              {/* LEFT COLUMN: 2/3 Interactive Floor Plan (8 cols of 12 = 66.67%) */}
-              <div className="order-1 lg:order-1 lg:col-span-8 flex flex-col h-[520px] sm:h-[600px] lg:h-full min-h-[480px] rounded-3xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner relative">
+            <div className="flex flex-col lg:h-full lg:grid lg:grid-cols-12 gap-5 animate-fadeIn min-h-0">
+              {/* LEFT COLUMN: 2/3 Interactive Floor Plan (Vertical Rectangle) */}
+              <div className="order-1 lg:order-1 lg:col-span-8 flex flex-col shrink-0 lg:shrink h-[68vh] min-h-[580px] sm:min-h-[660px] lg:h-full rounded-3xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner relative">
                 {distributionMode !== 'none' ? (
                   <FloorPlanView
                     key={`floorplan-selector-${distributionMode}`}
