@@ -9,6 +9,7 @@ import {
   History,
   Home,
   Plus,
+  Power,
   RotateCcw,
   ShieldCheck,
   Sliders,
@@ -32,6 +33,7 @@ interface DiscreetAdminDrawerProps {
   onStartNewInspection: () => void;
   onOpenOtaSettings?: () => void;
   onOpenVisualScale?: () => void;
+  onOpenPreChecklistConfig?: () => void;
 }
 
 export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
@@ -49,6 +51,7 @@ export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
   onStartNewInspection,
   onOpenOtaSettings,
   onOpenVisualScale,
+  onOpenPreChecklistConfig,
 }) => {
   if (!isOpen) return null;
 
@@ -157,6 +160,29 @@ export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 px-2 block">
               Gestão de Propriedade & Itens
             </span>
+
+            {onOpenPreChecklistConfig && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenPreChecklistConfig();
+                }}
+                className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-amber-500/30 flex items-center gap-3 text-left transition-colors"
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                  <Power className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <div>
+                  <span className="block text-sm font-extrabold text-white">
+                    Configurar pré-checklist
+                  </span>
+                  <span className="block text-xs text-slate-400">
+                    Ações de preparação de equipamentos (freezer, etc.)
+                  </span>
+                </div>
+              </button>
+            )}
 
             <button
               type="button"

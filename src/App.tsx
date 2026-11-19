@@ -47,13 +47,21 @@ import { QuickRoomInspection } from './components/QuickRoomInspection';
 import { RoomCategoryManagementModal } from './components/RoomCategoryManagementModal';
 import { RoomManagementModal } from './components/RoomManagementModal';
 import { RoomOrderManagementModal } from './components/RoomOrderManagementModal';
+import { PreChecklistConfigModal } from './components/PreChecklistConfigModal';
+import { PreChecklistExecutionModal } from './components/PreChecklistExecutionModal';
 import { SeniorChecklistMain } from './components/SeniorChecklistMain';
 import { SeniorRoomInspection } from './components/SeniorRoomInspection';
 import { SupabaseConfigModal } from './components/SupabaseConfigModal';
 import { VisualAccessibilityModal } from './components/VisualAccessibilityModal';
 import { getInventoryImageUrl, isSupabaseConfigured } from './lib/supabase';
 import { checkForUpdate } from './services/otaUpdateService';
+import {
+  fetchPreChecklistActions,
+  fetchPreChecklistCompletions,
+  togglePreChecklistCompletion,
+} from './services/preChecklistService';
 import { UpdateInfo } from './types/ota';
+import { PreChecklistAction } from './types/preChecklist';
 import {
   finalizeChecklistSession,
   getOrCreateActiveChecklistSession,
@@ -135,6 +143,12 @@ export function App() {
   // Visual Accessibility State
   const [isVisualScaleModalOpen, setIsVisualScaleModalOpen] = useState(false);
 
+  // Pre-Checklist Actions and Execution State
+  const [preChecklistActions, setPreChecklistActions] = useState<PreChecklistAction[]>([]);
+  const [preChecklistCompletions, setPreChecklistCompletions] = useState<Set<string>>(new Set());
+  const [isPreChecklistConfigOpen, setIsPreChecklistConfigOpen] = useState(false);
+  const [isPreChecklistExecutionOpen, setIsPreChecklistExecutionOpen] = useState(false);
+
   // OTA Updates State
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
   const [isOtaModalOpen, setIsOtaModalOpen] = useState(false);
@@ -163,6 +177,14 @@ export function App() {
   useEffect(() => {
     const unregister = registerBackHandler('AppModalsAndScreens', 10, () => {
       // 1. Modals & Dialogs (Priority order)
+      if (isPreChecklistExecutionOpen) {
+        setIsPreChecklistExecutionOpen(false);
+        return true;
+      }
+      if (isPreChecklistConfigOpen) {
+        setIsPreChecklistConfigOpen(false);
+        return true;
+      }
       if (isVisualScaleModalOpen) {
         setIsVisualScaleModalOpen(false);
         return true;
@@ -231,6 +253,8 @@ export function App() {
 
     return unregister;
   }, [
+    isPreChecklistExecutionOpen,
+    isPreChecklistConfigOpen,
     isVisualScaleModalOpen,
     selectedDetailItem,
     deletingItem,
@@ -306,12 +330,22 @@ export function App() {
         return loadedItems.find((it) => it.id === curr.id) || curr;
       });
 
+      // Load pre-checklist actions
+      const actions = await fetchPreChecklistActions(loadedItems);
+      setPreChecklistActions(actions);
+
       // Load or resume active checklist session
       const sessionDetail = await getOrCreateActiveChecklistSession(loadedRooms);
       setActiveSession(sessionDetail.session);
       setRoomProgressList(sessionDetail.roomProgressList);
       setItemResults(sessionDetail.itemResults);
       setOccurrences(sessionDetail.occurrences);
+
+      // Load pre-checklist completions for this active session
+      if (sessionDetail.session?.id) {
+        const completions = await fetchPreChecklistCompletions(sessionDetail.session.id);
+        setPreChecklistCompletions(completions);
+      }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Erro ao sincronizar dados.');
     } finally {
@@ -368,13 +402,45 @@ export function App() {
       setRoomProgressList(newSessionDetail.roomProgressList);
       setItemResults(newSessionDetail.itemResults);
       setOccurrences(newSessionDetail.occurrences);
+      setPreChecklistCompletions(new Set());
       setActiveRoom(null);
       setAppScreen('checklist_main');
       showToast('Nova vistoria iniciada com sucesso!');
+
+      // Prompt pre-checklist preparation if active equipment actions exist
+      if (preChecklistActions.some((a) => a.is_active)) {
+        setIsPreChecklistExecutionOpen(true);
+      }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Erro ao iniciar nova vistoria.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Toggle pre-checklist equipment completion status
+  const handleTogglePreChecklistAction = async (actionId: string, isCompleted: boolean) => {
+    if (!activeSession) return;
+    // Optimistic UI update
+    setPreChecklistCompletions((prev) => {
+      const next = new Set(prev);
+      if (isCompleted) next.add(actionId);
+      else next.delete(actionId);
+      return next;
+    });
+
+    try {
+      await togglePreChecklistCompletion(activeSession.id, actionId, isCompleted);
+    } catch (err: any) {
+      console.error('Failed to toggle pre-checklist completion:', err);
+      // Revert optimistic update on failure
+      setPreChecklistCompletions((prev) => {
+        const next = new Set(prev);
+        if (isCompleted) next.delete(actionId);
+        else next.add(actionId);
+        return next;
+      });
+      showToast('Erro ao atualizar preparação do equipamento.');
     }
   };
 
@@ -605,6 +671,15 @@ export function App() {
     const roomItems = getItemsForRoom(items, activeRoom.id);
     const isQuickMode = activeRoom.checklist_mode === 'quick';
 
+    const pendingRoomPreActions = preChecklistActions.filter(
+      (a) =>
+        a.is_active &&
+        (a.room_id === activeRoom.id ||
+          (a.room_name &&
+            a.room_name.trim().toLowerCase() === activeRoom.name.trim().toLowerCase())) &&
+        !preChecklistCompletions.has(a.id)
+    );
+
     return (
       <>
         {isQuickMode ? (
@@ -615,6 +690,8 @@ export function App() {
             itemResults={itemResults}
             allRooms={rooms}
             completedRoomIds={completedRoomIds}
+            pendingRoomPreActions={pendingRoomPreActions}
+            onOpenPreChecklist={() => setIsPreChecklistExecutionOpen(true)}
             onBackToRooms={() => setAppScreen('checklist_main')}
             onRecordInspection={handleRecordInspection}
             onCompleteRoom={handleCompleteRoom}
@@ -629,6 +706,8 @@ export function App() {
             itemResults={itemResults}
             allRooms={rooms}
             completedRoomIds={completedRoomIds}
+            pendingRoomPreActions={pendingRoomPreActions}
+            onOpenPreChecklist={() => setIsPreChecklistExecutionOpen(true)}
             onBackToRooms={() => setAppScreen('checklist_main')}
             onRecordInspection={handleRecordInspection}
             onCompleteRoom={handleCompleteRoom}
@@ -636,6 +715,14 @@ export function App() {
             onCompleteAllChecklist={handleCompleteAllChecklist}
           />
         )}
+        <PreChecklistExecutionModal
+          isOpen={isPreChecklistExecutionOpen}
+          onClose={() => setIsPreChecklistExecutionOpen(false)}
+          actions={preChecklistActions.filter((a) => a.is_active)}
+          completedActionIds={preChecklistCompletions}
+          onToggleAction={handleTogglePreChecklistAction}
+          onContinueToInspection={() => setIsPreChecklistExecutionOpen(false)}
+        />
         {toastNotification}
       </>
     );
@@ -1131,6 +1218,15 @@ export function App() {
           onClose={() => setIsVisualScaleModalOpen(false)}
         />
 
+        {/* Pre-Checklist Configuration Modal */}
+        <PreChecklistConfigModal
+          isOpen={isPreChecklistConfigOpen}
+          onClose={() => setIsPreChecklistConfigOpen(false)}
+          actions={preChecklistActions}
+          inventoryItems={items}
+          onActionsUpdated={(updated) => setPreChecklistActions(updated)}
+        />
+
         {toastNotification}
       </div>
     );
@@ -1143,6 +1239,9 @@ export function App() {
         rooms={rooms}
         roomProgressMap={roomProgressMap}
         session={activeSession}
+        preChecklistActions={preChecklistActions}
+        preChecklistCompletions={preChecklistCompletions}
+        onOpenPreChecklist={() => setIsPreChecklistExecutionOpen(true)}
         onSelectRoom={(room) => {
           setActiveRoom(room);
           setAppScreen('room_inspection');
@@ -1165,6 +1264,7 @@ export function App() {
         onOpenCategories={() => setIsCategoriesModalOpen(true)}
         onOpenPrefixes={() => setIsPrefixesModalOpen(true)}
         onOpenSupabase={() => setIsSupabaseModalOpen(true)}
+        onOpenPreChecklistConfig={() => setIsPreChecklistConfigOpen(true)}
         onOpenHistory={() => setIsHistoryModalOpen(true)}
         onOpenVisualScale={() => setIsVisualScaleModalOpen(true)}
         onStartNewInspection={handleStartNewInspection}
@@ -1284,6 +1384,25 @@ export function App() {
       <VisualAccessibilityModal
         isOpen={isVisualScaleModalOpen}
         onClose={() => setIsVisualScaleModalOpen(false)}
+      />
+
+      {/* Pre-Checklist Configuration Modal */}
+      <PreChecklistConfigModal
+        isOpen={isPreChecklistConfigOpen}
+        onClose={() => setIsPreChecklistConfigOpen(false)}
+        actions={preChecklistActions}
+        inventoryItems={items}
+        onActionsUpdated={(updated) => setPreChecklistActions(updated)}
+      />
+
+      {/* Pre-Checklist Execution Modal */}
+      <PreChecklistExecutionModal
+        isOpen={isPreChecklistExecutionOpen}
+        onClose={() => setIsPreChecklistExecutionOpen(false)}
+        actions={preChecklistActions.filter((a) => a.is_active)}
+        completedActionIds={preChecklistCompletions}
+        onToggleAction={handleTogglePreChecklistAction}
+        onContinueToInspection={() => setIsPreChecklistExecutionOpen(false)}
       />
 
       {toastNotification}

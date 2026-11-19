@@ -19,6 +19,7 @@ import {
   Tag,
   X,
   Zap,
+  Power,
 } from 'lucide-react';
 import { registerBackHandler } from '../lib/backNavigation';
 import { getConditionConfig } from '../lib/conditionUtils';
@@ -29,6 +30,7 @@ import {
 import { getInventoryImageUrl } from '../lib/supabase';
 import { ChecklistItemResult, ChecklistOccurrence } from '../types/checklist';
 import { InventoryItem, Room } from '../types/inventory';
+import { PreChecklistAction } from '../types/preChecklist';
 import { SeniorCelebrationOverlay } from './SeniorCelebrationOverlay';
 import { SeniorIssueModal } from './SeniorIssueModal';
 import { SeniorQuantityAdjustModal } from './SeniorQuantityAdjustModal';
@@ -41,6 +43,8 @@ interface SeniorRoomInspectionProps {
   itemResults: ChecklistItemResult[];
   allRooms: Room[];
   completedRoomIds: Set<string>;
+  pendingRoomPreActions?: PreChecklistAction[];
+  onOpenPreChecklist?: () => void;
   onBackToRooms: () => void;
   onRecordInspection: (params: {
     item: InventoryItem;
@@ -66,6 +70,8 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
   itemResults,
   allRooms,
   completedRoomIds,
+  pendingRoomPreActions = [],
+  onOpenPreChecklist,
   onBackToRooms,
   onRecordInspection,
   onCompleteRoom,
@@ -454,6 +460,34 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
           </div>
         </div>
       </header>
+
+      {/* Preparation Reminder Banner for this room */}
+      {pendingRoomPreActions.length > 0 && (
+        <aside aria-label="Lembrete de preparação de equipamentos" className="w-full max-w-xl mx-auto px-3 sm:px-4 pt-2 shrink-0">
+          <div className="p-3 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 flex items-center justify-between gap-3 text-amber-200 shadow-md">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Power className="w-5 h-5 text-amber-400 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-black text-amber-300">
+                  Atenção: Equipamento precisa estar ligado!
+                </p>
+                <p className="text-[11px] sm:text-xs font-semibold text-amber-200/90 truncate">
+                  {pendingRoomPreActions.map((a) => a.title).join(', ')}
+                </p>
+              </div>
+            </div>
+            {onOpenPreChecklist && (
+              <button
+                type="button"
+                onClick={onOpenPreChecklist}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-black text-xs shrink-0 active:scale-95 transition-all shadow"
+              >
+                Ligar
+              </button>
+            )}
+          </div>
+        </aside>
+      )}
 
       {/* ZONE 1: Foto do Item e Identificação (Frame 100% Responsivo) */}
       {currentItem && (

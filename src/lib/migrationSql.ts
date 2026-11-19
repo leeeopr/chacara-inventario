@@ -786,4 +786,58 @@ BEGIN
       OR LOWER(name) LIKE '%pano de prato%'
     );
 END $$;
+
+-- =============================================================================
+-- MIGRATION: CONFIGURABLE PRE-CHECKLIST (EQUIPMENT PREPARATION ACTIONS)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.pre_checklist_actions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  instruction TEXT NOT NULL,
+  inventory_item_id UUID NULL REFERENCES public.inventory_items(id) ON DELETE SET NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  order_index INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT pre_checklist_actions_title_not_empty CHECK (char_length(trim(title)) > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pre_checklist_actions_order ON public.pre_checklist_actions (order_index ASC, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_pre_checklist_actions_item_id ON public.pre_checklist_actions (inventory_item_id);
+CREATE INDEX IF NOT EXISTS idx_pre_checklist_actions_is_active ON public.pre_checklist_actions (is_active);
+
+ALTER TABLE public.pre_checklist_actions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "pre_checklist_actions_select" ON public.pre_checklist_actions;
+CREATE POLICY "pre_checklist_actions_select" ON public.pre_checklist_actions FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "pre_checklist_actions_insert" ON public.pre_checklist_actions;
+CREATE POLICY "pre_checklist_actions_insert" ON public.pre_checklist_actions FOR INSERT TO anon, authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "pre_checklist_actions_update" ON public.pre_checklist_actions;
+CREATE POLICY "pre_checklist_actions_update" ON public.pre_checklist_actions FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "pre_checklist_actions_delete" ON public.pre_checklist_actions;
+CREATE POLICY "pre_checklist_actions_delete" ON public.pre_checklist_actions FOR DELETE TO anon, authenticated USING (true);
+
+-- Table for tracking completion of preparation actions in each checklist session
+CREATE TABLE IF NOT EXISTS public.checklist_pre_action_completions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  checklist_session_id UUID NOT NULL REFERENCES public.checklist_sessions(id) ON DELETE CASCADE,
+  pre_checklist_action_id UUID NOT NULL REFERENCES public.pre_checklist_actions(id) ON DELETE CASCADE,
+  completed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_by TEXT NULL,
+  CONSTRAINT unique_session_pre_action UNIQUE (checklist_session_id, pre_checklist_action_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_checklist_pre_action_session ON public.checklist_pre_action_completions (checklist_session_id);
+
+ALTER TABLE public.checklist_pre_action_completions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "checklist_pre_action_completions_select" ON public.checklist_pre_action_completions;
+CREATE POLICY "checklist_pre_action_completions_select" ON public.checklist_pre_action_completions FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "checklist_pre_action_completions_insert" ON public.checklist_pre_action_completions;
+CREATE POLICY "checklist_pre_action_completions_insert" ON public.checklist_pre_action_completions FOR INSERT TO anon, authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "checklist_pre_action_completions_update" ON public.checklist_pre_action_completions;
+CREATE POLICY "checklist_pre_action_completions_update" ON public.checklist_pre_action_completions FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "checklist_pre_action_completions_delete" ON public.checklist_pre_action_completions;
+CREATE POLICY "checklist_pre_action_completions_delete" ON public.checklist_pre_action_completions FOR DELETE TO anon, authenticated USING (true);
 `;
