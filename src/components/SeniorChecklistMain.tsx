@@ -42,10 +42,15 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
   onSeedDefaultRooms,
   onOpenAccessibility,
 }) => {
-  // Active pre-checklist actions
-  const activePreActions = preChecklistActions.filter((a) => a.is_active);
+  // Active pre-checklist actions (completely ignored if empty)
+  const safePreActions = Array.isArray(preChecklistActions) ? preChecklistActions : [];
+  const safeCompletions =
+    preChecklistCompletions instanceof Set
+      ? preChecklistCompletions
+      : new Set<string>();
+  const activePreActions = safePreActions.filter((a) => a && a.is_active);
   const completedPreCount = activePreActions.filter((a) =>
-    preChecklistCompletions.has(a.id)
+    safeCompletions.has(a.id)
   ).length;
   const isAllPreDone =
     activePreActions.length > 0 && completedPreCount === activePreActions.length;
@@ -224,7 +229,7 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
                   (a.room_id === room.id ||
                     (a.room_name &&
                       a.room_name.trim().toLowerCase() === room.name.trim().toLowerCase())) &&
-                  !preChecklistCompletions.has(a.id)
+                  !safeCompletions.has(a.id)
               );
 
               return (

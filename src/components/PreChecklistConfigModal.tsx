@@ -39,23 +39,29 @@ import { ConfirmDialog } from './ConfirmDialog';
 
 interface PreChecklistConfigModalProps {
   isOpen: boolean;
-  actions: PreChecklistAction[];
-  inventoryItems: InventoryItem[];
-  rooms: Room[];
+  actions?: PreChecklistAction[];
+  inventoryItems?: InventoryItem[];
+  rooms?: Room[];
   onClose: () => void;
-  onActionsChanged: () => Promise<void>;
-  onToast: (msg: string) => void;
+  onActionsChanged?: () => Promise<void>;
+  onActionsUpdated?: (updated: PreChecklistAction[]) => void;
+  onToast?: (msg: string) => void;
 }
 
 export const PreChecklistConfigModal: React.FC<PreChecklistConfigModalProps> = ({
   isOpen,
-  actions,
-  inventoryItems,
-  rooms,
+  actions = [],
+  inventoryItems = [],
+  rooms = [],
   onClose,
   onActionsChanged,
-  onToast,
+  onActionsUpdated,
+  onToast = () => {},
 }) => {
+  const safeActions = Array.isArray(actions) ? actions : [];
+  const safeItems = Array.isArray(inventoryItems) ? inventoryItems : [];
+  const safeRooms = Array.isArray(rooms) ? rooms : [];
+
   // Modal states
   const [editingAction, setEditingAction] = useState<PreChecklistAction | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -78,8 +84,8 @@ export const PreChecklistConfigModal: React.FC<PreChecklistConfigModalProps> = (
 
   // Map of inventory items
   const itemMap = useMemo(() => {
-    return new Map(inventoryItems.map((it) => [it.id, it]));
-  }, [inventoryItems]);
+    return new Map(safeItems.map((it) => [it.id, it]));
+  }, [safeItems]);
 
   // Android back button integration
   useEffect(() => {
@@ -134,7 +140,21 @@ export const PreChecklistConfigModal: React.FC<PreChecklistConfigModalProps> = (
     setIsFormOpen(true);
   };
 
-  // Save form
+  const triggerRefresh = async () => {
+    try {
+      if (onActionsChanged) {
+        await onActionsChanged();
+      }
+      if (onActionsUpdated) {
+        const updated = await fetchPreChecklistActions(inventoryItems);
+        onActionsUpdated(updated);
+      }
+    } catch {
+      // Ignore refresh error
+    }
+  };
+
+  // Save form (Create or Update)
   const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) {
@@ -155,7 +175,7 @@ export const PreChecklistConfigModal: React.FC<PreChecklistConfigModalProps> = (
         await createPreChecklistAction(formData, inventoryItems);
         onToast(`Ação "${formData.title}" criada com sucesso!`);
       }
-      await onActionsChanged();
+      await triggerRefresh();
       setIsFormOpen(false);
       setEditingAction(null);
     } catch (err: any) {
@@ -172,7 +192,7 @@ export const PreChecklistConfigModal: React.FC<PreChecklistConfigModalProps> = (
     setIsDeletingLoading(true);
     try {
       await deletePreChecklistAction(deletingAction.id);
-      await onActionsChanged();
+      await triggerRefresh();
       onToast(`Ação "${deletingAction.title}" removida.`);
       setDeletingAction(null);
     } catch (err) {
@@ -191,7 +211,7 @@ export const PreChecklistConfigModal: React.FC<PreChecklistConfigModalProps> = (
         { is_active: !action.is_active },
         inventoryItems
       );
-      await onActionsChanged();
+      await triggerRefresh();
       onToast(
         !action.is_active
           ? `Ação "${action.title}" ativada!`
@@ -212,7 +232,7 @@ export const PreChecklistConfigModal: React.FC<PreChecklistConfigModalProps> = (
 
     const orderedIds = newActions.map((a) => a.id);
     await reorderPreChecklistActions(orderedIds);
-    await onActionsChanged();
+    await triggerRefresh();
   };
 
   // Reorder action down
@@ -225,7 +245,7 @@ export const PreChecklistConfigModal: React.FC<PreChecklistConfigModalProps> = (
 
     const orderedIds = newActions.map((a) => a.id);
     await reorderPreChecklistActions(orderedIds);
-    await onActionsChanged();
+    await triggerRefresh();
   };
 
   // Seed suggestions
@@ -233,7 +253,7 @@ export const PreChecklistConfigModal: React.FC<PreChecklistConfigModalProps> = (
     setIsSeedingLoading(true);
     try {
       await seedSuggestedPreChecklistActions(inventoryItems);
-      await onActionsChanged();
+      await triggerRefresh();
       onToast('Ações sugeridas (Freezer, Bebedouro, Geladeira) geradas com sucesso!');
     } catch (err) {
       console.error('Erro ao gerar sugestões:', err);

@@ -330,10 +330,6 @@ export function App() {
         return loadedItems.find((it) => it.id === curr.id) || curr;
       });
 
-      // Load pre-checklist actions
-      const actions = await fetchPreChecklistActions(loadedItems);
-      setPreChecklistActions(actions);
-
       // Load or resume active checklist session
       const sessionDetail = await getOrCreateActiveChecklistSession(loadedRooms);
       setActiveSession(sessionDetail.session);
@@ -341,10 +337,20 @@ export function App() {
       setItemResults(sessionDetail.itemResults);
       setOccurrences(sessionDetail.occurrences);
 
-      // Load pre-checklist completions for this active session
-      if (sessionDetail.session?.id) {
-        const completions = await fetchPreChecklistCompletions(sessionDetail.session.id);
-        setPreChecklistCompletions(completions);
+      // Load pre-checklist actions & completions safely (never blocks app loading)
+      try {
+        const actions = await fetchPreChecklistActions(loadedItems);
+        setPreChecklistActions(actions || []);
+        if (sessionDetail.session?.id && actions && actions.length > 0) {
+          const completions = await fetchPreChecklistCompletions(sessionDetail.session.id);
+          setPreChecklistCompletions(completions || new Set());
+        } else {
+          setPreChecklistCompletions(new Set());
+        }
+      } catch (preErr) {
+        // Supabase table may not exist yet or offline; pre-checklist is optional
+        setPreChecklistActions([]);
+        setPreChecklistCompletions(new Set());
       }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Erro ao sincronizar dados.');
@@ -406,11 +412,6 @@ export function App() {
       setActiveRoom(null);
       setAppScreen('checklist_main');
       showToast('Nova vistoria iniciada com sucesso!');
-
-      // Prompt pre-checklist preparation if active equipment actions exist
-      if (preChecklistActions.some((a) => a.is_active)) {
-        setIsPreChecklistExecutionOpen(true);
-      }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Erro ao iniciar nova vistoria.');
     } finally {
@@ -719,6 +720,7 @@ export function App() {
           isOpen={isPreChecklistExecutionOpen}
           onClose={() => setIsPreChecklistExecutionOpen(false)}
           actions={preChecklistActions.filter((a) => a.is_active)}
+          inventoryItems={items}
           completedActionIds={preChecklistCompletions}
           onToggleAction={handleTogglePreChecklistAction}
           onContinueToInspection={() => setIsPreChecklistExecutionOpen(false)}
@@ -1224,7 +1226,10 @@ export function App() {
           onClose={() => setIsPreChecklistConfigOpen(false)}
           actions={preChecklistActions}
           inventoryItems={items}
+          rooms={rooms}
           onActionsUpdated={(updated) => setPreChecklistActions(updated)}
+          onActionsChanged={loadAllData}
+          onToast={showToast}
         />
 
         {toastNotification}
@@ -1392,7 +1397,10 @@ export function App() {
         onClose={() => setIsPreChecklistConfigOpen(false)}
         actions={preChecklistActions}
         inventoryItems={items}
+        rooms={rooms}
         onActionsUpdated={(updated) => setPreChecklistActions(updated)}
+        onActionsChanged={loadAllData}
+        onToast={showToast}
       />
 
       {/* Pre-Checklist Execution Modal */}
@@ -1400,6 +1408,7 @@ export function App() {
         isOpen={isPreChecklistExecutionOpen}
         onClose={() => setIsPreChecklistExecutionOpen(false)}
         actions={preChecklistActions.filter((a) => a.is_active)}
+        inventoryItems={items}
         completedActionIds={preChecklistCompletions}
         onToggleAction={handleTogglePreChecklistAction}
         onContinueToInspection={() => setIsPreChecklistExecutionOpen(false)}

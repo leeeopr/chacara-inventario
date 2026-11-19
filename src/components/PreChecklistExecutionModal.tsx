@@ -22,12 +22,14 @@ import { PreChecklistAction } from '../types/preChecklist';
 
 interface PreChecklistExecutionModalProps {
   isOpen: boolean;
-  actions: PreChecklistAction[];
-  inventoryItems: InventoryItem[];
-  completedActionIds: Set<string>;
+  actions?: PreChecklistAction[];
+  inventoryItems?: InventoryItem[];
+  completedActionIds?: Set<string>;
   onClose: () => void;
-  onToggleCompletion: (actionId: string, isCompleted: boolean) => Promise<void>;
-  onProceedToRooms: () => void;
+  onToggleAction?: (actionId: string, isCompleted: boolean) => Promise<void>;
+  onToggleCompletion?: (actionId: string, isCompleted: boolean) => Promise<void>;
+  onContinueToInspection?: () => void;
+  onProceedToRooms?: () => void;
   // Optional room filter if opened in context of a specific room
   roomFilterId?: string | null;
   roomNameFilter?: string | null;
@@ -35,29 +37,38 @@ interface PreChecklistExecutionModalProps {
 
 export const PreChecklistExecutionModal: React.FC<PreChecklistExecutionModalProps> = ({
   isOpen,
-  actions,
-  inventoryItems,
-  completedActionIds,
+  actions = [],
+  inventoryItems = [],
+  completedActionIds = new Set(),
   onClose,
+  onToggleAction,
   onToggleCompletion,
+  onContinueToInspection,
   onProceedToRooms,
   roomFilterId = null,
   roomNameFilter = null,
 }) => {
+  const toggleHandler = onToggleAction || onToggleCompletion || (async () => {});
+  const proceedHandler = onContinueToInspection || onProceedToRooms || onClose;
+
   const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [photoZoomUrl, setPhotoZoomUrl] = useState<string | null>(null);
   const [photoZoomTitle, setPhotoZoomTitle] = useState<string>('');
   const [isSubmittingMap, setIsSubmittingMap] = useState<Map<string, boolean>>(new Map());
 
+  const safeActions = Array.isArray(actions) ? actions : [];
+  const safeItems = Array.isArray(inventoryItems) ? inventoryItems : [];
+  const safeCompletedIds = completedActionIds instanceof Set ? completedActionIds : new Set<string>();
+
   // Filter only active actions
   const activeActions = useMemo(() => {
-    return actions.filter((a) => a.is_active);
-  }, [actions]);
+    return safeActions.filter((a) => a && a.is_active);
+  }, [safeActions]);
 
   // Map of inventory items
   const itemMap = useMemo(() => {
-    return new Map(inventoryItems.map((it) => [it.id, it]));
-  }, [inventoryItems]);
+    return new Map(safeItems.map((it) => [it.id, it]));
+  }, [safeItems]);
 
   // Contextual actions (filtered by room if specified)
   const contextualActions = useMemo(() => {
@@ -74,8 +85,8 @@ export const PreChecklistExecutionModal: React.FC<PreChecklistExecutionModalProp
   // Counts & Progress
   const totalCount = contextualActions.length;
   const completedCount = useMemo(() => {
-    return contextualActions.filter((a) => completedActionIds.has(a.id)).length;
-  }, [contextualActions, completedActionIds]);
+    return contextualActions.filter((a) => safeCompletedIds.has(a.id)).length;
+  }, [contextualActions, safeCompletedIds]);
 
   const pendingCount = totalCount - completedCount;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -84,12 +95,12 @@ export const PreChecklistExecutionModal: React.FC<PreChecklistExecutionModalProp
   // Filtered list by tab
   const displayedActions = useMemo(() => {
     return contextualActions.filter((a) => {
-      const isDone = completedActionIds.has(a.id);
+      const isDone = safeCompletedIds.has(a.id);
       if (activeFilter === 'pending') return !isDone;
       if (activeFilter === 'completed') return isDone;
       return true;
     });
-  }, [contextualActions, completedActionIds, activeFilter]);
+  }, [contextualActions, safeCompletedIds, activeFilter]);
 
   // Android back button integration
   useEffect(() => {
@@ -111,7 +122,7 @@ export const PreChecklistExecutionModal: React.FC<PreChecklistExecutionModalProp
   const handleToggle = async (actionId: string, currentStatus: boolean) => {
     setIsSubmittingMap((prev) => new Map(prev).set(actionId, true));
     try {
-      await onToggleCompletion(actionId, !currentStatus);
+      await toggleHandler(actionId, !currentStatus);
     } catch (err) {
       console.error('Erro ao alternar conclusão da ação de pré-checklist:', err);
     } finally {
@@ -388,7 +399,7 @@ export const PreChecklistExecutionModal: React.FC<PreChecklistExecutionModalProp
             type="button"
             onClick={() => {
               onClose();
-              onProceedToRooms();
+              proceedHandler();
             }}
             className={`flex-1 py-3.5 sm:py-4 px-5 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-xl transition-all active:scale-[0.98] ${
               allCompleted
