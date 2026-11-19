@@ -68,13 +68,20 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
       {/* Top Header - Extremely simple: Title + Discreet Accessibility & Hamburger Menu */}
       <header className="sticky top-0 z-30 bg-slate-950/95 border-b-2 border-slate-800/80 px-4 sm:px-6 py-4 backdrop-blur-md">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Conferência da Chácara
-            </h1>
-            <p className="text-xs sm:text-sm font-bold text-slate-400 mt-0.5">
-              Toque no cômodo para conferir os itens
-            </p>
+          <div className="flex items-center gap-3 min-w-0">
+            <img
+              src="/logo.png"
+              alt="Logo Chácara"
+              className="w-12 h-12 rounded-2xl object-cover shadow-lg shadow-emerald-500/20 shrink-0"
+            />
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white truncate">
+                Conferência da Chácara
+              </h1>
+              <p className="text-xs sm:text-sm font-bold text-slate-400 mt-0.5 truncate">
+                Toque no cômodo para conferir os itens
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
