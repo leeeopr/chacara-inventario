@@ -7,6 +7,7 @@ import {
   Home,
   Menu,
   RotateCcw,
+  Sliders,
   Sparkles,
 } from 'lucide-react';
 import { ChecklistRoomProgress, ChecklistSession } from '../types/checklist';
@@ -20,6 +21,7 @@ interface SeniorChecklistMainProps {
   onOpenAdminMenu: () => void;
   onStartNewSession: () => void;
   onSeedDefaultRooms: () => void;
+  onOpenAccessibility?: () => void;
 }
 
 export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
@@ -30,6 +32,7 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
   onOpenAdminMenu,
   onStartNewSession,
   onSeedDefaultRooms,
+  onOpenAccessibility,
 }) => {
   // Calculate completed count
   const completedRoomsCount = rooms.filter((r) => {
@@ -41,9 +44,9 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col select-none">
-      {/* Top Header - Extremely simple: Title + Discreet Hamburger Menu */}
+      {/* Top Header - Extremely simple: Title + Discreet Accessibility & Hamburger Menu */}
       <header className="sticky top-0 z-30 bg-slate-950/95 border-b-2 border-slate-800/80 px-4 sm:px-6 py-4 backdrop-blur-md">
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
               Conferência da Chácara
@@ -53,15 +56,29 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
             </p>
           </div>
 
-          {/* Discreet Hamburger Menu Button */}
-          <button
-            type="button"
-            onClick={onOpenAdminMenu}
-            aria-label="Abrir menu de administração"
-            className="w-12 h-12 rounded-2xl bg-slate-900 hover:bg-slate-800 active:bg-slate-700 border-2 border-slate-800 flex items-center justify-center text-slate-300 hover:text-white transition-all shadow-md shrink-0"
-          >
-            <Menu className="w-7 h-7 stroke-[2.5]" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenAccessibility && (
+              <button
+                type="button"
+                onClick={onOpenAccessibility}
+                aria-label="Ajustar tamanho da interface"
+                title="Ajustar tamanho da interface"
+                className="w-12 h-12 rounded-2xl bg-slate-900 hover:bg-slate-800 active:bg-slate-700 border-2 border-slate-800 flex items-center justify-center text-amber-400 hover:text-amber-300 transition-all shadow-md shrink-0"
+              >
+                <Sliders className="w-6 h-6 stroke-[2.5]" />
+              </button>
+            )}
+
+            {/* Discreet Hamburger Menu Button */}
+            <button
+              type="button"
+              onClick={onOpenAdminMenu}
+              aria-label="Abrir menu de administração"
+              className="w-12 h-12 rounded-2xl bg-slate-900 hover:bg-slate-800 active:bg-slate-700 border-2 border-slate-800 flex items-center justify-center text-slate-300 hover:text-white transition-all shadow-md shrink-0"
+            >
+              <Menu className="w-7 h-7 stroke-[2.5]" />
+            </button>
+          </div>
         </div>
       </header>
 

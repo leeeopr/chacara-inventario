@@ -26,6 +26,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  Sliders,
   Sparkles,
   Tag,
   Trash2,
@@ -49,6 +50,7 @@ import { RoomOrderManagementModal } from './components/RoomOrderManagementModal'
 import { SeniorChecklistMain } from './components/SeniorChecklistMain';
 import { SeniorRoomInspection } from './components/SeniorRoomInspection';
 import { SupabaseConfigModal } from './components/SupabaseConfigModal';
+import { VisualAccessibilityModal } from './components/VisualAccessibilityModal';
 import { getInventoryImageUrl, isSupabaseConfigured } from './lib/supabase';
 import { checkForUpdate } from './services/otaUpdateService';
 import { UpdateInfo } from './types/ota';
@@ -130,6 +132,9 @@ export function App() {
   const [isPrefixesModalOpen, setIsPrefixesModalOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
+  // Visual Accessibility State
+  const [isVisualScaleModalOpen, setIsVisualScaleModalOpen] = useState(false);
+
   // OTA Updates State
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
   const [isOtaModalOpen, setIsOtaModalOpen] = useState(false);
@@ -158,6 +163,10 @@ export function App() {
   useEffect(() => {
     const unregister = registerBackHandler('AppModalsAndScreens', 10, () => {
       // 1. Modals & Dialogs (Priority order)
+      if (isVisualScaleModalOpen) {
+        setIsVisualScaleModalOpen(false);
+        return true;
+      }
       if (selectedDetailItem) {
         setSelectedDetailItem(null);
         return true;
@@ -222,6 +231,7 @@ export function App() {
 
     return unregister;
   }, [
+    isVisualScaleModalOpen,
     selectedDetailItem,
     deletingItem,
     isAdminDrawerOpen,
@@ -708,6 +718,17 @@ export function App() {
 
               <button
                 type="button"
+                onClick={() => setIsVisualScaleModalOpen(true)}
+                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5 transition-all"
+                title="Ajustar tamanho da interface (Acessibilidade visual)"
+                aria-label="Ajustar tamanho da interface"
+              >
+                <Sliders className="w-4 h-4 text-emerald-400" />
+                <span className="hidden sm:inline">Acessibilidade</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => {
                   setEditingItem(null);
                   setIsItemFormOpen(true);
@@ -1104,6 +1125,12 @@ export function App() {
           onToast={showToast}
         />
 
+        {/* Visual Accessibility Settings Modal */}
+        <VisualAccessibilityModal
+          isOpen={isVisualScaleModalOpen}
+          onClose={() => setIsVisualScaleModalOpen(false)}
+        />
+
         {toastNotification}
       </div>
     );
@@ -1121,6 +1148,7 @@ export function App() {
           setAppScreen('room_inspection');
         }}
         onOpenAdminMenu={() => setIsAdminDrawerOpen(true)}
+        onOpenAccessibility={() => setIsVisualScaleModalOpen(true)}
         onStartNewSession={handleStartNewInspection}
         onSeedDefaultRooms={handleSeedRooms}
       />
@@ -1138,6 +1166,7 @@ export function App() {
         onOpenPrefixes={() => setIsPrefixesModalOpen(true)}
         onOpenSupabase={() => setIsSupabaseModalOpen(true)}
         onOpenHistory={() => setIsHistoryModalOpen(true)}
+        onOpenVisualScale={() => setIsVisualScaleModalOpen(true)}
         onStartNewInspection={handleStartNewInspection}
         onOpenOtaSettings={() => setIsOtaSettingsModalOpen(true)}
       />
@@ -1249,6 +1278,12 @@ export function App() {
           setIsOtaModalOpen(true);
         }}
         onToast={showToast}
+      />
+
+      {/* Visual Accessibility Settings Modal */}
+      <VisualAccessibilityModal
+        isOpen={isVisualScaleModalOpen}
+        onClose={() => setIsVisualScaleModalOpen(false)}
       />
 
       {toastNotification}

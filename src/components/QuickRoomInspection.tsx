@@ -14,6 +14,7 @@ import {
   Layers,
   Package,
   RotateCcw,
+  Sliders,
   Sparkles,
   Tag,
   X,
@@ -25,11 +26,13 @@ import {
   InspectionType,
 } from '../lib/inspectionTypeUtils';
 import { getInventoryImageUrl } from '../lib/supabase';
+import { useVisualScale } from '../lib/visualScale';
 import { ChecklistItemResult, ChecklistOccurrenceType } from '../types/checklist';
 import { InventoryItem, Room } from '../types/inventory';
 import { SeniorCelebrationOverlay } from './SeniorCelebrationOverlay';
 import { SeniorIssueModal } from './SeniorIssueModal';
 import { SeniorQuantityAdjustModal } from './SeniorQuantityAdjustModal';
+import { VisualAccessibilityModal } from './VisualAccessibilityModal';
 
 interface QuickRoomInspectionProps {
   room: Room;
@@ -174,9 +177,17 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
     };
   }, []);
 
+  // Visual accessibility hook
+  const { isHighAccessibility } = useVisualScale();
+  const [isAccessibilityModalOpen, setIsAccessibilityModalOpen] = useState(false);
+
   // Android hardware back navigation
   useEffect(() => {
     const unregister = registerBackHandler('QuickRoomInspection', 50, () => {
+      if (isAccessibilityModalOpen) {
+        setIsAccessibilityModalOpen(false);
+        return true;
+      }
       if (photoZoomUrl) {
         setPhotoZoomUrl(null);
         return true;
@@ -207,6 +218,7 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
 
     return () => unregister();
   }, [
+    isAccessibilityModalOpen,
     photoZoomUrl,
     confirmIncompleteOpen,
     isIssueModalOpen,
@@ -399,8 +411,18 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
             </div>
           </div>
 
-          {/* Progress Pill */}
-          <div className="shrink-0 flex items-center gap-1">
+          {/* Controls: Accessibility & Progress Pill */}
+          <div className="shrink-0 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setIsAccessibilityModalOpen(true)}
+              className="p-1.5 sm:p-2 rounded-xl text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 active:scale-95 transition-all flex items-center justify-center"
+              title="Ajustar tamanho da interface"
+              aria-label="Ajustar tamanho da interface"
+            >
+              <Sliders className="w-4 h-4 text-emerald-400" />
+            </button>
+
             <span
               className={`px-2 py-1 rounded-lg text-xs font-extrabold flex items-center gap-1 ${
                 isRoomCompleted
@@ -506,7 +528,7 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className={`grid gap-2 sm:gap-3 ${isHighAccessibility ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-3'}`}>
             {displayedItems.map((item) => {
               const result = inspectedMap.get(item.id);
               const isChecked = !!result;
@@ -1011,6 +1033,14 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* 11. VISUAL ACCESSIBILITY SETTINGS MODAL */}
+      {/* ========================================================================= */}
+      <VisualAccessibilityModal
+        isOpen={isAccessibilityModalOpen}
+        onClose={() => setIsAccessibilityModalOpen(false)}
+      />
     </div>
   );
 };

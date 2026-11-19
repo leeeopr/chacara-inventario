@@ -14,6 +14,7 @@ import {
   Package,
   RotateCcw,
   ShieldCheck,
+  Sliders,
   Sparkles,
   Tag,
   X,
@@ -31,6 +32,7 @@ import { InventoryItem, Room } from '../types/inventory';
 import { SeniorCelebrationOverlay } from './SeniorCelebrationOverlay';
 import { SeniorIssueModal } from './SeniorIssueModal';
 import { SeniorQuantityAdjustModal } from './SeniorQuantityAdjustModal';
+import { VisualAccessibilityModal } from './VisualAccessibilityModal';
 
 interface SeniorRoomInspectionProps {
   room: Room;
@@ -98,6 +100,7 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
   const [issueModalInitialTag, setIssueModalInitialTag] = useState<string | null>(null);
 
   // Modals
+  const [isAccessibilityModalOpen, setIsAccessibilityModalOpen] = useState(false);
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [isQuantityModalOpen, setIsQuantityModalOpen] = useState(false);
   const [isPhotoZoomOpen, setIsPhotoZoomOpen] = useState(false);
@@ -114,6 +117,11 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
   // Register Android Hardware Back Button and Gesture Handler for SeniorRoomInspection
   useEffect(() => {
     const unregister = registerBackHandler('SeniorRoomInspection', 50, () => {
+      // 0. Close visual accessibility modal if open
+      if (isAccessibilityModalOpen) {
+        setIsAccessibilityModalOpen(false);
+        return true;
+      }
       // 1. Close full-screen photo zoom preview if open
       if (isPhotoZoomOpen) {
         setIsPhotoZoomOpen(false);
@@ -147,6 +155,7 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
 
     return unregister;
   }, [
+    isAccessibilityModalOpen,
     isPhotoZoomOpen,
     isIssueModalOpen,
     isQuantityModalOpen,
@@ -409,20 +418,30 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
             </p>
           </div>
 
-          {/* Quick previous item button if needed */}
-          {currentIndex > 0 ? (
+          {/* Controls: Accessibility & Quick previous item button */}
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
-              onClick={() => setCurrentIndex((idx) => Math.max(0, idx - 1))}
-              className="py-2 px-2.5 rounded-2xl bg-slate-800 text-slate-300 font-bold flex items-center gap-1 shrink-0 text-xs"
-              title="Item anterior"
+              onClick={() => setIsAccessibilityModalOpen(true)}
+              className="p-2 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center border border-slate-700 text-xs"
+              title="Ajustar tamanho da interface"
+              aria-label="Ajustar tamanho da interface"
             >
-              <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
-              <span className="hidden sm:inline">Anterior</span>
+              <Sliders className="w-4 h-4 text-emerald-400" />
             </button>
-          ) : (
-            <div className="w-16 shrink-0" />
-          )}
+
+            {currentIndex > 0 ? (
+              <button
+                type="button"
+                onClick={() => setCurrentIndex((idx) => Math.max(0, idx - 1))}
+                className="py-2 px-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold flex items-center gap-1 shrink-0 text-xs border border-slate-700"
+                title="Item anterior"
+              >
+                <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+                <span className="hidden sm:inline">Anterior</span>
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {/* High-visibility progress bar */}
@@ -765,6 +784,12 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
           }}
         />
       )}
+
+      {/* Visual Accessibility Settings Modal */}
+      <VisualAccessibilityModal
+        isOpen={isAccessibilityModalOpen}
+        onClose={() => setIsAccessibilityModalOpen(false)}
+      />
     </div>
   );
 };

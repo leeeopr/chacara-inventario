@@ -11,6 +11,7 @@ import {
   Plus,
   RotateCcw,
   ShieldCheck,
+  Sliders,
   Sparkles,
   Tag,
   X,
@@ -30,6 +31,7 @@ interface DiscreetAdminDrawerProps {
   onOpenHistory: () => void;
   onStartNewInspection: () => void;
   onOpenOtaSettings?: () => void;
+  onOpenVisualScale?: () => void;
 }
 
 export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
@@ -46,6 +48,7 @@ export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
   onOpenHistory,
   onStartNewInspection,
   onOpenOtaSettings,
+  onOpenVisualScale,
 }) => {
   if (!isOpen) return null;
 
@@ -123,6 +126,27 @@ export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
                 </span>
                 <span className="block text-xs text-slate-400">
                   Ver relatórios anteriores e danos
+                </span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenVisualScale?.();
+              }}
+              className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-amber-500/30 flex items-center gap-3 text-left transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <Sliders className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <div>
+                <span className="block text-sm font-extrabold text-white">
+                  Tamanho da Interface
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Ajustar escala visual para baixa visão
                 </span>
               </div>
             </button>

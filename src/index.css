@@ -3,11 +3,57 @@
 @tailwind utilities;
 
 @layer base {
-  html,
-  body {
-    @apply bg-slate-950 text-slate-100 antialiased;
+  html {
+    font-size: 16px;
+    --ui-scale-multiplier: 1;
+    --ui-touch-target-min: 48px;
+    --ui-font-size-px: 16px;
+    transition: font-size 0.15s ease-out;
     -webkit-tap-highlight-color: transparent;
   }
+
+  body {
+    @apply bg-slate-950 text-slate-100 antialiased;
+    touch-action: manipulation;
+  }
+}
+
+/* Accessibility Scaling Classes & Data Attributes */
+html[data-ui-size="small"] {
+  font-size: 14px;
+  --ui-scale-multiplier: 0.875;
+  --ui-touch-target-min: 42px;
+}
+
+html[data-ui-size="normal"] {
+  font-size: 16px;
+  --ui-scale-multiplier: 1;
+  --ui-touch-target-min: 48px;
+}
+
+html[data-ui-size="large"] {
+  font-size: 18px;
+  --ui-scale-multiplier: 1.125;
+  --ui-touch-target-min: 52px;
+}
+
+html[data-ui-size="very_large"] {
+  font-size: 20.5px;
+  --ui-scale-multiplier: 1.28;
+  --ui-touch-target-min: 58px;
+}
+
+html[data-ui-size="extra_large"] {
+  font-size: 23px;
+  --ui-scale-multiplier: 1.44;
+  --ui-touch-target-min: 64px;
+}
+
+/* Optimized typography spacing for low vision modes */
+html[data-ui-size="very_large"] body,
+html[data-ui-size="extra_large"] body {
+  letter-spacing: 0.015em;
+  line-height: 1.45;
 }
 
 /* Custom subtle scrollbars */
