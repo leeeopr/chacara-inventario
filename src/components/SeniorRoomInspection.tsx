@@ -436,15 +436,15 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
         </div>
       </header>
 
-      {/* ZONE 1: Compact Item Identity Strip (Visually Secondary, Compact) */}
+      {/* Scrollable / Flexible Inspection Body */}
       {currentItem && (
-        <section className="w-full max-w-xl mx-auto px-3 sm:px-4 pt-2 shrink-0">
-          <div className="rounded-2xl bg-slate-900/90 border border-slate-800/90 p-2 sm:p-2.5 flex items-center gap-3 shadow-lg">
-            {/* Clickable Thumbnail with Zoom Prompt */}
-            <button
-              type="button"
+        <main className="flex-1 max-w-xl w-full mx-auto px-3 sm:px-4 py-2 flex flex-col justify-between gap-2.5 overflow-y-auto">
+          {/* Card do Item com Fotografia Generosa */}
+          <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl shrink-0">
+            {/* Foto Prominente */}
+            <div
+              className="relative w-full h-44 sm:h-52 bg-slate-950 overflow-hidden flex items-center justify-center cursor-pointer group"
               onClick={() => setIsPhotoZoomOpen(true)}
-              className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-slate-950 border border-slate-700/80 shrink-0 group focus:outline-none focus:ring-2 focus:ring-emerald-400"
               title="Toque para ampliar foto"
             >
               {imageUrl ? (
@@ -454,165 +454,183 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
                   className="w-full h-full object-cover group-active:scale-105 transition-transform"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-600">
-                  <Camera className="w-6 h-6 opacity-40" />
+                <div className="flex flex-col items-center justify-center p-4 text-slate-600">
+                  <Camera className="w-12 h-12 mb-1.5 opacity-40" />
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    Sem fotografia cadastrada
+                  </span>
                 </div>
               )}
-              <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Eye className="w-4 h-4 text-white drop-shadow" />
-              </div>
-            </button>
 
-            {/* Item Meta & Name */}
-            <div className="min-w-0 flex-1 space-y-0.5">
-              <div className="flex flex-wrap items-center gap-1.5">
-                {currentItem.identification_code && (
-                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-amber-400 text-slate-950 font-black text-xs font-mono shadow-sm">
-                    <Hash className="w-3 h-3 stroke-[3]" />
+              {/* Tag de Código (#UT08) */}
+              {currentItem.identification_code && (
+                <div className="absolute top-2.5 left-2.5">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-amber-400 text-slate-950 font-black text-sm font-mono shadow-md border border-amber-300">
+                    <Hash className="w-3.5 h-3.5 stroke-[3]" />
                     {currentItem.identification_code}
                   </span>
-                )}
+                </div>
+              )}
 
+              {/* Tag de Quantidade / Tipo */}
+              <div className="absolute top-2.5 right-2.5">
                 {!isIndividual ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-extrabold text-[11px] border border-emerald-500/30">
-                    <Package className="w-3 h-3" />
-                    {currentItem.expected_quantity} UN
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs shadow-md border border-emerald-400">
+                    <Package className="w-3.5 h-3.5 stroke-[2.5]" />
+                    {currentItem.expected_quantity} UNIDADES
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 font-extrabold text-[11px]">
+                  <span className="px-2.5 py-1 rounded-xl bg-slate-900/90 text-slate-200 font-extrabold text-xs backdrop-blur-md border border-slate-700 shadow-md">
                     Individual
                   </span>
                 )}
+              </div>
+
+              {/* Tag de Status Já Conferido */}
+              {currentResult && (
+                <div className="absolute bottom-2 left-2">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl font-bold text-xs backdrop-blur-md shadow-md ${
+                      currentResult.status === 'found'
+                        ? 'bg-emerald-500/95 text-slate-950'
+                        : 'bg-rose-500/95 text-white'
+                    }`}
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    {currentResult.status === 'found'
+                      ? 'Conferido: ENCONTRADO'
+                      : `Problema: ${currentResult.notes || currentResult.status}`}
+                  </span>
+                </div>
+              )}
+
+              {/* Dica de Toque para Ampliar */}
+              <div className="absolute bottom-2 right-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 text-slate-300 font-bold text-[10px] backdrop-blur-sm border border-white/10">
+                  <Eye className="w-3 h-3" />
+                  Ampliar
+                </span>
+              </div>
+            </div>
+
+            {/* Informações do Item (Nome e Estado Físico) */}
+            <div className="p-3 sm:p-3.5 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-base sm:text-lg font-black text-white truncate leading-tight">
+                  {currentItem.name}
+                </h2>
 
                 {(() => {
                   const conditionCfg = getConditionConfig(currentItem.condition_status);
                   return (
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold border ${conditionCfg.badgeBg} ${conditionCfg.badgeBorder} ${conditionCfg.badgeText}`}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold border shrink-0 ${conditionCfg.badgeBg} ${conditionCfg.badgeBorder} ${conditionCfg.badgeText}`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full ${conditionCfg.dotColor}`} />
                       {conditionCfg.shortLabel}
                     </span>
                   );
                 })()}
-
-                {currentResult && (
-                  <span
-                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${
-                      currentResult.status === 'found'
-                        ? 'bg-emerald-500 text-slate-950'
-                        : 'bg-rose-500 text-white'
-                    }`}
-                  >
-                    {currentResult.status === 'found' ? '✓ Conferido' : '⚠ Problema'}
-                  </span>
-                )}
               </div>
 
-              <h2 className="text-sm sm:text-base font-black text-white truncate leading-snug">
-                {currentItem.name}
-              </h2>
-
               {currentItem.condition_notes && (
-                <p className="text-[11px] text-slate-400 truncate">
+                <p className="text-xs text-slate-400 truncate">
                   📝 {currentItem.condition_notes}
                 </p>
               )}
             </div>
           </div>
-        </section>
-      )}
 
-      {/* ZONE 2: Visual Focus Area (Question in Center, Slightly Above Midpoint) */}
-      {currentItem && (
-        <main className="flex-1 max-w-xl w-full mx-auto px-4 py-2 flex flex-col justify-center items-center my-auto space-y-3">
-          {/* Inspection Type Badge & Steps Indicator */}
-          <div className="w-full flex items-center justify-between gap-2 px-1">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-slate-900 border border-slate-800">
-              <div
-                className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${currentInspectionConfig.badgeBg} ${currentInspectionConfig.badgeText}`}
-              >
-                <InspectionIcon className="w-3.5 h-3.5" />
-              </div>
-              <span className={`text-xs font-black uppercase tracking-wider ${currentInspectionConfig.badgeText}`}>
-                {currentInspectionConfig.badgeLabel}
-              </span>
-            </div>
-
-            {/* 3 Step Indicator Dots */}
-            <div className="flex items-center gap-1.5">
-              {currentInspectionConfig.questions.map((q, idx) => {
-                const isDone = idx < questionIndex;
-                const isCurrent = idx === questionIndex;
-                return (
-                  <div
-                    key={q.id}
-                    className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black transition-all ${
-                      isDone
-                        ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/20'
-                        : isCurrent
-                        ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-400/50 scale-105 shadow-md shadow-amber-400/20'
-                        : 'bg-slate-800/80 text-slate-500'
-                    }`}
-                    title={`Pergunta ${idx + 1}: ${q.question}`}
-                  >
-                    {isDone ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : idx + 1}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Active Question Box - Prominent, Center Focus, High Contrast */}
-          <div className="w-full rounded-3xl bg-slate-900 border-2 border-slate-700/80 p-5 sm:p-7 shadow-2xl relative text-center space-y-2.5">
+          {/* Card da Pergunta Ativa */}
+          <div className="rounded-2xl bg-slate-900 border border-slate-800 p-3.5 sm:p-4 space-y-2.5 text-center shadow-xl shrink-0">
+            {/* Cabeçalho do Roteiro e Marcadores de Pergunta */}
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] font-black uppercase tracking-wider text-amber-400">
-                Pergunta {questionIndex + 1} de {currentInspectionConfig.questions.length}
-              </span>
-
-              {questionIndex > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setQuestionIndex((prev) => Math.max(0, prev - 1))}
-                  className="text-[11px] font-bold text-slate-400 hover:text-white flex items-center gap-1 py-1 px-2 rounded-lg bg-slate-800 border border-slate-700 transition-colors"
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/80 border border-slate-700/60">
+                <div
+                  className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${currentInspectionConfig.badgeBg} ${currentInspectionConfig.badgeText}`}
                 >
-                  <ChevronLeft className="w-3 h-3" />
-                  <span>Pergunta anterior</span>
-                </button>
+                  <InspectionIcon className="w-3 h-3" />
+                </div>
+                <span className={`text-[11px] font-black uppercase tracking-wider ${currentInspectionConfig.badgeText}`}>
+                  {currentInspectionConfig.badgeLabel}
+                </span>
+              </div>
+
+              {/* 3 Marcadores de Pergunta */}
+              <div className="flex items-center gap-1.5">
+                {currentInspectionConfig.questions.map((q, idx) => {
+                  const isDone = idx < questionIndex;
+                  const isCurrent = idx === questionIndex;
+                  return (
+                    <div
+                      key={q.id}
+                      className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black transition-all ${
+                        isDone
+                          ? 'bg-emerald-500 text-slate-950 font-black'
+                          : isCurrent
+                          ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-400/50 scale-105 shadow-sm'
+                          : 'bg-slate-800 text-slate-500'
+                      }`}
+                      title={`Pergunta ${idx + 1}: ${q.question}`}
+                    >
+                      {isDone ? <Check className="w-3 h-3 stroke-[3]" /> : idx + 1}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Pergunta e Navegação Anterior */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                  Pergunta {questionIndex + 1} de {currentInspectionConfig.questions.length}
+                </span>
+
+                {questionIndex > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setQuestionIndex((prev) => Math.max(0, prev - 1))}
+                    className="text-[11px] font-bold text-slate-400 hover:text-white flex items-center gap-0.5 py-0.5 px-1.5 rounded-md bg-slate-800 border border-slate-700 transition-colors"
+                  >
+                    <ChevronLeft className="w-3 h-3" />
+                    <span>Voltar pergunta</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Texto da Pergunta */}
+              <h3 className="text-base sm:text-lg font-black text-white leading-snug tracking-tight px-1">
+                {currentQuestion.question}
+              </h3>
+
+              {/* Orientação */}
+              <p className="text-xs text-slate-400 leading-relaxed font-medium max-w-md mx-auto">
+                {currentInspectionConfig.description}
+              </p>
+
+              {/* Observação de Desgaste prévio se houver */}
+              {currentItem.condition_status && currentItem.condition_status !== 'good' && (
+                <p className="text-[11px] text-amber-300 font-medium bg-amber-500/10 border border-amber-500/25 p-1.5 rounded-xl text-left leading-snug mt-1">
+                  ℹ️ <strong>Observação:</strong> Este item possui desgaste prévio registrado. Se o item estiver conforme o previsto, responda <strong>SIM</strong>.
+                </p>
               )}
             </div>
-
-            {/* Main Inspection Question */}
-            <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-white leading-snug tracking-tight px-1">
-              {currentQuestion.question}
-            </h3>
-
-            {/* Inspection Guidance / Safe testing instructions */}
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium max-w-md mx-auto">
-              {currentInspectionConfig.description}
-            </p>
-
-            {/* Wear / Previous note reminder if any */}
-            {currentItem.condition_status && currentItem.condition_status !== 'good' && (
-              <p className="text-[11px] sm:text-xs text-amber-300 font-medium bg-amber-500/10 border border-amber-500/25 p-2 rounded-xl text-left leading-snug">
-                ℹ️ <strong>Observação:</strong> Este item possui desgaste prévio registrado. Se o item estiver conforme o previsto, responda <strong>SIM</strong>.
-              </p>
-            )}
           </div>
         </main>
       )}
 
-      {/* ZONE 3: Natural Thumb Reach Area (Answer & Confirmation Buttons) */}
+      {/* ZONE 3: Natural Thumb Reach Area (Answer & Confirmation Buttons - IDENTICAL SIZES) */}
       {currentItem && (
-        <section className="w-full max-w-xl mx-auto px-4 space-y-2.5 shrink-0">
-          {/* SIM (Primary Action - Large Touch Target) */}
+        <section className="w-full max-w-xl mx-auto px-4 space-y-2.5 shrink-0 pt-1">
+          {/* SIM (Primary Action - Same Size as NÃO) */}
           <button
             type="button"
             onClick={handleAnswerSim}
             disabled={isSubmitting}
-            className="w-full py-4 sm:py-5 rounded-2xl sm:rounded-3xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-black text-xl sm:text-2xl flex items-center justify-center gap-3 shadow-xl shadow-emerald-500/25 transition-all border-b-4 border-emerald-600 disabled:opacity-50"
+            className="w-full h-14 sm:h-15 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-black text-base sm:text-lg flex items-center justify-center gap-2.5 shadow-lg shadow-emerald-500/25 border-2 border-emerald-400 transition-all disabled:opacity-50"
           >
-            <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8 stroke-[3]" />
+            <CheckCircle2 className="w-6 h-6 stroke-[3]" />
             <span>
               {questionIndex < currentInspectionConfig.questions.length - 1
                 ? 'SIM (CONTINUAR)'
@@ -620,18 +638,18 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
             </span>
           </button>
 
-          {/* NÃO (Defect / Issue Confirmation) */}
+          {/* NÃO (Defect / Issue Confirmation - EXACT SAME SIZE AS SIM) */}
           <button
             type="button"
             onClick={handleAnswerNao}
             disabled={isSubmitting}
-            className="w-full py-3 sm:py-3.5 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 active:scale-[0.98] text-rose-300 hover:text-white font-extrabold text-sm sm:text-base flex items-center justify-center gap-2 border-2 border-rose-500/50 shadow-md shadow-rose-950/30 transition-all"
+            className="w-full h-14 sm:h-15 rounded-2xl bg-rose-600 hover:bg-rose-500 active:scale-[0.98] text-white font-black text-base sm:text-lg flex items-center justify-center gap-2.5 shadow-lg shadow-rose-950/40 border-2 border-rose-500 transition-all disabled:opacity-50"
           >
-            <AlertTriangle className="w-5 h-5 stroke-[2.5] text-rose-400" />
+            <AlertTriangle className="w-6 h-6 stroke-[2.5] text-white" />
             <span>NÃO (COM PROBLEMA / DEFEITO)</span>
           </button>
 
-          {/* Secondary Ergonomic Actions */}
+          {/* Secondary Actions */}
           <div className="pt-0.5 flex items-center justify-between gap-2">
             {!isIndividual && (
               <button
