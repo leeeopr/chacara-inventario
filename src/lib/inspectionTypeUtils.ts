@@ -10,6 +10,7 @@ export interface InspectionQuestion {
 export interface InspectionTypeConfig {
   type: InspectionType;
   title: string;
+  label: string;
   shortLabel: string;
   badgeLabel: string;
   description: string;
@@ -26,6 +27,7 @@ export const INSPECTION_TYPES_CONFIG: Record<InspectionType, InspectionTypeConfi
   functionality: {
     type: 'functionality',
     title: 'Funcionamento',
+    label: 'Funcionamento',
     shortLabel: 'Funcionamento',
     badgeLabel: 'Conferência de Funcionamento',
     description: 'Para aparelhos e eletrodomésticos que precisam operar e ligar',
@@ -59,6 +61,7 @@ export const INSPECTION_TYPES_CONFIG: Record<InspectionType, InspectionTypeConfi
   conservation: {
     type: 'conservation',
     title: 'Conservação',
+    label: 'Conservação',
     shortLabel: 'Conservação',
     badgeLabel: 'Conferência de Conservação',
     description: 'Para tecidos, estofados, roupas de cama, banho e cortinas',
@@ -92,6 +95,7 @@ export const INSPECTION_TYPES_CONFIG: Record<InspectionType, InspectionTypeConfi
   physical_integrity: {
     type: 'physical_integrity',
     title: 'Integridade Física',
+    label: 'Integridade Física',
     shortLabel: 'Integridade Física',
     badgeLabel: 'Conferência de Integridade',
     description: 'Para louças, utensílios de cozinha, móveis e objetos em geral',

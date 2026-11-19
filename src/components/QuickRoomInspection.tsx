@@ -231,7 +231,29 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
   // Open detailed inspection modal for an item
   const openDetailedModal = (item: InventoryItem) => {
     setSelectedItemForDetails(item);
-    setDetailAnswers({});
+    const existing = inspectedMap.get(item.id);
+    setDetailAnswers(existing?.inspection_answers ? { ...existing.inspection_answers } : {});
+  };
+
+  // Detailed modal confirmation: saves inspection with recorded answers (both SIM and NÃO)
+  const handleConfirmDetailedInspection = async (item: InventoryItem) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onRecordInspection({
+        item,
+        status: 'found',
+        foundQuantity: item.expected_quantity,
+        notes: null,
+        inspectionTypeSnapshot: item.inspection_type || 'physical_integrity',
+        inspectionAnswers: Object.keys(detailAnswers).length > 0 ? detailAnswers : null,
+      });
+      setSelectedItemForDetails(null);
+    } catch (err) {
+      console.error('Erro ao salvar conferência detalhada:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Single tap confirmation: Mark item as APPROVED / FOUND immediately
@@ -827,14 +849,9 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setDetailAnswers((prev) => ({ ...prev, [q.id]: false }));
-                                  setIssueModalItem(selectedItemForDetails);
-                                  setIssueModalInitialType('damaged');
-                                  setIssueModalInitialTag(q.shortTag);
-                                  setIssueModalFailedQuestion(q.question);
-                                  setIsIssueModalOpen(true);
-                                }}
+                                onClick={() =>
+                                  setDetailAnswers((prev) => ({ ...prev, [q.id]: false }))
+                                }
                                 className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all ${
                                   answer === false
                                     ? 'bg-rose-500 text-white shadow-sm'
@@ -854,18 +871,15 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
 
               {/* Action Buttons for Detailed Modal */}
               <div className="space-y-2 pt-2">
-                {/* 1. Confirm Approved */}
+                {/* 1. Confirm Detailed Inspection */}
                 <button
                   type="button"
                   disabled={isSubmitting}
-                  onClick={async () => {
-                    await handleSingleTapApproved(selectedItemForDetails);
-                    setSelectedItemForDetails(null);
-                  }}
+                  onClick={() => handleConfirmDetailedInspection(selectedItemForDetails)}
                   className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-98 transition-all"
                 >
                   <Check className="w-5 h-5 stroke-[3]" />
-                  <span>Confirmar Item Aprovado (Tudo OK)</span>
+                  <span>Confirmar Conferência do Item</span>
                 </button>
 
                 {/* 2. Quantity Adjust (if applicable) */}
@@ -888,10 +902,12 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      const cfg = getInspectionTypeConfig(selectedItemForDetails.inspection_type);
+                      const failedQ = cfg.questions.find((q) => detailAnswers[q.id] === false);
                       setIssueModalItem(selectedItemForDetails);
                       setIssueModalInitialType('damaged');
-                      setIssueModalInitialTag('Quebrado / Avariado');
-                      setIssueModalFailedQuestion(null);
+                      setIssueModalInitialTag(failedQ ? failedQ.shortTag : 'Quebrado / Avariado');
+                      setIssueModalFailedQuestion(failedQ ? failedQ.question : null);
                       setIsIssueModalOpen(true);
                     }}
                     className="py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"

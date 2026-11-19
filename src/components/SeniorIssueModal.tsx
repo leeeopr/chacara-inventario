@@ -52,6 +52,13 @@ export const SeniorIssueModal: React.FC<SeniorIssueModalProps> = ({
   const isQuantity = item.inventory_type === 'quantity';
   const expected = item.expected_quantity;
 
+  const availableTags = React.useMemo(() => {
+    if (initialTag && !COMMON_TAGS.includes(initialTag)) {
+      return [initialTag, ...COMMON_TAGS];
+    }
+    return COMMON_TAGS;
+  }, [initialTag]);
+
   const [issueType, setIssueType] = useState<ChecklistOccurrenceType>(initialOccurrenceType);
   const [foundQuantity, setFoundQuantity] = useState<number>(() =>
     isQuantity ? Math.max(0, expected - 1) : 0
@@ -235,7 +242,7 @@ export const SeniorIssueModal: React.FC<SeniorIssueModalProps> = ({
               Selecione o detalhe:
             </label>
             <div className="space-y-2">
-              {COMMON_TAGS.map((tag) => (
+              {availableTags.map((tag) => (
                 <button
                   key={tag}
                   type="button"
