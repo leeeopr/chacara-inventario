@@ -234,8 +234,12 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
               const pendingRoomPreActions = activePreActions.filter(
                 (a) =>
                   (a.room_id === room.id ||
+                    a.inventory_item?.room_id === room.id ||
+                    a.inventory_item?.room_assignments?.some((as) => as.room_id === room.id) ||
                     (a.room_name &&
-                      a.room_name.trim().toLowerCase() === room.name.trim().toLowerCase())) &&
+                      a.room_name.trim().toLowerCase() === room.name.trim().toLowerCase()) ||
+                    (a.room_name_snapshot &&
+                      a.room_name_snapshot.trim().toLowerCase() === room.name.trim().toLowerCase())) &&
                   !safeCompletions.has(a.id)
               );
 

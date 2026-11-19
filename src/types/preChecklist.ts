@@ -11,7 +11,9 @@ export interface PreChecklistAction {
   updated_at?: string;
   // Associated inventory item details for rich rendering
   inventory_item?: InventoryItem | null;
-  // Derived helper for room display
+  // Room association and derived helpers for room display
+  room_id?: string | null;
+  room_name?: string | null;
   room_name_snapshot?: string | null;
 }
 

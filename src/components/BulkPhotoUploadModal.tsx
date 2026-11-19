@@ -53,7 +53,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    const unregister = registerBackHandler(() => {
+    const unregister = registerBackHandler('BulkPhotoUploadModal', 50, () => {
       if (isProcessing) {
         const confirmCancel = window.confirm(
           'O envio de fotos está em andamento. Deseja realmente cancelar e fechar?'

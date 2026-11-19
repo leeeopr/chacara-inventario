@@ -4,11 +4,13 @@ import { registerBackHandler, setRootBackAction } from './lib/backNavigation';
 import {
   AlertCircle,
   ArrowLeft,
+  ArrowRight,
   ArrowUpDown,
   Boxes,
   Camera,
   CheckCircle2,
   ClipboardList,
+  Clock,
   Compass,
   Database,
   Edit3,
@@ -38,6 +40,7 @@ import { ChecklistHistoryModal } from './components/ChecklistHistoryModal';
 import { CodePrefixesModal } from './components/CodePrefixesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { DiscreetAdminDrawer } from './components/DiscreetAdminDrawer';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { FloorPlanModal } from './components/FloorPlanModal';
 import { InventoryItemCard } from './components/InventoryItemCard';
 import { InventoryItemDetailModal } from './components/InventoryItemDetailModal';
@@ -54,6 +57,7 @@ import { SeniorChecklistMain } from './components/SeniorChecklistMain';
 import { SeniorRoomInspection } from './components/SeniorRoomInspection';
 import { SupabaseConfigModal } from './components/SupabaseConfigModal';
 import { VisualAccessibilityModal } from './components/VisualAccessibilityModal';
+import { InspectionType } from './lib/inspectionTypeUtils';
 import { getInventoryImageUrl, isSupabaseConfigured } from './lib/supabase';
 import { checkForUpdate } from './services/otaUpdateService';
 import {
@@ -560,13 +564,13 @@ export function App() {
         return false;
       }
       if (q) {
-        const matchName = item.name.toLowerCase().includes(q);
+        const matchName = (item.name || '').toLowerCase().includes(q);
         const matchCode = item.identification_code?.toLowerCase().includes(q) || false;
         const matchDesc = item.description?.toLowerCase().includes(q) || false;
-        const matchRoom = item.room?.name.toLowerCase().includes(q) || false;
-        const matchCat = item.category?.name.toLowerCase().includes(q) || false;
+        const matchRoom = (item.room?.name || '').toLowerCase().includes(q);
+        const matchCat = (item.category?.name || '').toLowerCase().includes(q);
         const matchAssignment = item.room_assignments?.some((a) =>
-          a.room?.name.toLowerCase().includes(q)
+          (a.room?.name || '').toLowerCase().includes(q)
         ) || false;
         return matchName || matchCode || matchDesc || matchRoom || matchCat || matchAssignment;
       }
@@ -576,7 +580,7 @@ export function App() {
     return list.sort((a, b) => {
       switch (filters.sortBy) {
         case 'name_asc':
-          return a.name.localeCompare(b.name, 'pt-BR');
+          return (a.name || '').localeCompare(b.name || '', 'pt-BR');
         case 'code_asc':
           return (a.identification_code || 'ZZZZ').localeCompare(
             b.identification_code || 'ZZZZ',
@@ -586,10 +590,13 @@ export function App() {
         case 'room_asc':
           return (a.room?.name || '').localeCompare(b.room?.name || '', 'pt-BR');
         case 'quantity_desc':
-          return (b.total_quantity ?? b.expected_quantity) - (a.total_quantity ?? a.expected_quantity);
+          return (
+            (b.total_quantity ?? b.expected_quantity ?? 0) -
+            (a.total_quantity ?? a.expected_quantity ?? 0)
+          );
         case 'newest':
         default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
       }
     });
   }, [items, filters]);
@@ -698,8 +705,12 @@ export function App() {
       (a) =>
         a.is_active &&
         (a.room_id === activeRoom.id ||
+          a.inventory_item?.room_id === activeRoom.id ||
+          a.inventory_item?.room_assignments?.some((as) => as.room_id === activeRoom.id) ||
           (a.room_name &&
-            a.room_name.trim().toLowerCase() === activeRoom.name.trim().toLowerCase())) &&
+            a.room_name.trim().toLowerCase() === activeRoom.name.trim().toLowerCase()) ||
+          (a.room_name_snapshot &&
+            a.room_name_snapshot.trim().toLowerCase() === activeRoom.name.trim().toLowerCase())) &&
         !preChecklistCompletions.has(a.id)
     );
 
@@ -755,7 +766,14 @@ export function App() {
   // 2. SCREEN: Administrative Inventory View (Property Owner)
   if (appScreen === 'admin_inventory') {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 pb-24 sm:pb-12">
+      <ErrorBoundary
+        fallbackTitle="Erro na Gestão do Inventário"
+        onReset={() => {
+          setAppScreen('checklist_main');
+          loadAllData();
+        }}
+      >
+        <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 pb-24 sm:pb-12">
         {/* Admin Navigation Bar */}
         <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800">
           <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
@@ -1406,6 +1424,7 @@ export function App() {
 
         {toastNotification}
       </div>
+      </ErrorBoundary>
     );
   }
 

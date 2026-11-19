@@ -1,4 +1,5 @@
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
+import { InspectionType } from '../lib/inspectionTypeUtils';
 import {
   ChecklistItemResult,
   ChecklistOccurrence,

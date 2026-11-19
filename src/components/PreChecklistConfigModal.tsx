@@ -26,6 +26,7 @@ import { getInventoryImageUrl } from '../lib/supabase';
 import {
   createPreChecklistAction,
   deletePreChecklistAction,
+  fetchPreChecklistActions,
   reorderPreChecklistActions,
   seedSuggestedPreChecklistActions,
   updatePreChecklistAction,
