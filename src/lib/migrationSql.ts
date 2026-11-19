@@ -840,4 +840,13 @@ DROP POLICY IF EXISTS "checklist_pre_action_completions_update" ON public.checkl
 CREATE POLICY "checklist_pre_action_completions_update" ON public.checklist_pre_action_completions FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
 DROP POLICY IF EXISTS "checklist_pre_action_completions_delete" ON public.checklist_pre_action_completions;
 CREATE POLICY "checklist_pre_action_completions_delete" ON public.checklist_pre_action_completions FOR DELETE TO anon, authenticated USING (true);
+
+-- =============================================================================
+-- MIGRATION: BULK INVENTORY REGISTRATION WITH DRAFT STATUS
+-- =============================================================================
+
+ALTER TABLE public.inventory_items
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'completed';
+
+CREATE INDEX IF NOT EXISTS idx_inventory_items_status ON public.inventory_items (status);
 `;

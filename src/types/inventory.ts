@@ -117,6 +117,8 @@ export interface InventoryCategory {
 
 export type InspectionType = 'functionality' | 'conservation' | 'physical_integrity';
 
+export type InventoryItemStatus = 'completed' | 'pending_information';
+
 export interface InventoryItem {
   id: string;
   name: string;
@@ -128,6 +130,7 @@ export interface InventoryItem {
   image_path: string | null;
   description: string | null;
   inspection_type?: InspectionType;
+  status?: InventoryItemStatus;
   created_at: string;
   updated_at: string;
   // Joined relations and multi-room distribution
@@ -153,6 +156,7 @@ export interface CreateInventoryItemInput {
   image_path?: string | null;
   description?: string | null;
   inspection_type?: InspectionType;
+  status?: InventoryItemStatus;
   initial_assignments?: UpsertRoomAssignmentInput[];
 }
 
@@ -166,6 +170,7 @@ export interface UpdateInventoryItemInput {
   image_path?: string | null;
   description?: string | null;
   inspection_type?: InspectionType;
+  status?: InventoryItemStatus;
   assignments?: UpsertRoomAssignmentInput[];
 }
 
@@ -174,6 +179,7 @@ export interface InventoryFilters {
   roomId: string; // 'all' or UUID
   categoryId: string; // 'all' | 'uncategorized' | UUID
   inventoryType: 'all' | InventoryType;
+  status?: 'all' | 'completed' | 'pending_information';
   sortBy: 'newest' | 'name_asc' | 'code_asc' | 'room_asc' | 'quantity_desc';
 }
 

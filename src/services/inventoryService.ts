@@ -9,6 +9,7 @@ import {
   FloorPlanShapeType,
   InventoryCategory,
   InventoryItem,
+  InventoryItemStatus,
   InventoryRoomAssignment,
   Room,
   RoomCategory,
@@ -1294,6 +1295,7 @@ const ITEM_SELECT_QUERY = `
   image_path,
   description,
   inspection_type,
+  status,
   created_at,
   updated_at,
   room:rooms(id, name, created_at, suite_id, room_type),
@@ -1345,9 +1347,14 @@ function normalizeJoinedItem(raw: any): InventoryItem {
       ? raw.expected_quantity || 1
       : 0;
 
+  const itemStatus: InventoryItemStatus =
+    raw.status ||
+    (String(raw.name || '').startsWith('Item pendente') ? 'pending_information' : 'completed');
+
   return {
     ...raw,
     inspection_type: raw.inspection_type || 'physical_integrity',
+    status: itemStatus,
     room,
     category,
     room_assignments: assignments,
@@ -1366,8 +1373,13 @@ export async function fetchInventoryItems(): Promise<InventoryItem[]> {
     .order('created_at', { ascending: false });
 
   if (error) {
-    // If room_assignments table doesn't exist yet in Supabase (before Migration 0004), fallback
-    if (String(error.message || '').includes('inventory_room_assignments') || error.code === 'PGRST200') {
+    // If room_assignments or status column doesn't exist yet in Supabase, fallback
+    if (
+      String(error.message || '').includes('inventory_room_assignments') ||
+      String(error.message || '').includes('status') ||
+      error.code === 'PGRST200' ||
+      error.code === '42703'
+    ) {
       const fallbackQuery = `
         id, name, identification_code, room_id, category_id, inventory_type,
         expected_quantity, image_path, description, inspection_type, created_at, updated_at,
@@ -1441,7 +1453,7 @@ export async function createInventoryItem(input: CreateInventoryItemInput): Prom
   const primaryRoomId = input.initial_assignments?.[0]?.room_id || input.room_id || null;
 
   const supabase = getSupabaseClient();
-  const payload = {
+  const payload: Record<string, any> = {
     name: cleanName,
     identification_code: cleanCode,
     room_id: primaryRoomId,
@@ -1451,15 +1463,32 @@ export async function createInventoryItem(input: CreateInventoryItemInput): Prom
     image_path: input.image_path || null,
     description: input.description?.trim() || null,
     inspection_type: input.inspection_type || 'physical_integrity',
+    status: input.status || 'completed',
   };
 
-  const { data, error } = await supabase
+  let data: any = null;
+  const insertRes = await supabase
     .from('inventory_items')
     .insert(payload)
     .select(ITEM_SELECT_QUERY)
     .single();
 
-  if (error) throw formatSupabaseError(error, 'Erro ao cadastrar item no inventário.');
+  if (insertRes.error) {
+    if (String(insertRes.error.message || '').includes('status') || insertRes.error.code === '42703') {
+      delete payload.status;
+      const retryRes = await supabase
+        .from('inventory_items')
+        .insert(payload)
+        .select()
+        .single();
+      if (retryRes.error) throw formatSupabaseError(retryRes.error, 'Erro ao cadastrar item no inventário.');
+      data = retryRes.data;
+    } else {
+      throw formatSupabaseError(insertRes.error, 'Erro ao cadastrar item no inventário.');
+    }
+  } else {
+    data = insertRes.data;
+  }
 
   const createdItem = normalizeJoinedItem(data);
 
@@ -1533,6 +1562,57 @@ export async function createInventoryItemsBatch(
   return (data || []).map(normalizeJoinedItem);
 }
 
+/**
+ * Creates a preliminary draft inventory item for a photo uploaded in bulk.
+ * Status is set to 'pending_information', indicating information must be completed later.
+ * It is completely isolated from checklists until completed.
+ */
+export async function createDraftPhotoItem(
+  imagePath: string,
+  indexHint?: number
+): Promise<InventoryItem> {
+  ensureConfigured();
+  const supabase = getSupabaseClient();
+  const itemName = indexHint
+    ? `Item pendente #${indexHint}`
+    : 'Item pendente de identificação';
+
+  const payload: Record<string, any> = {
+    name: itemName,
+    identification_code: null,
+    room_id: null,
+    category_id: null,
+    inventory_type: 'quantity',
+    expected_quantity: 1,
+    image_path: imagePath,
+    description: null,
+    inspection_type: 'physical_integrity',
+    status: 'pending_information',
+  };
+
+  const { data, error } = await supabase
+    .from('inventory_items')
+    .insert(payload)
+    .select(ITEM_SELECT_QUERY)
+    .single();
+
+  if (error) {
+    if (String(error.message || '').includes('status') || error.code === '42703') {
+      delete payload.status;
+      const fallback = await supabase
+        .from('inventory_items')
+        .insert(payload)
+        .select()
+        .single();
+      if (fallback.error) throw formatSupabaseError(fallback.error, 'Erro ao criar item preliminar.');
+      return normalizeJoinedItem({ ...fallback.data, status: 'pending_information' });
+    }
+    throw formatSupabaseError(error, 'Erro ao criar item preliminar da foto.');
+  }
+
+  return normalizeJoinedItem(data);
+}
+
 export async function updateInventoryItem(
   id: string,
   input: UpdateInventoryItemInput
@@ -1592,15 +1672,33 @@ export async function updateInventoryItem(
     updates.description = input.description?.trim() || null;
   }
 
+  if (input.status !== undefined) {
+    updates.status = input.status;
+  }
+
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('inventory_items')
     .update(updates)
     .eq('id', id)
     .select(ITEM_SELECT_QUERY)
     .single();
 
-  if (error) throw formatSupabaseError(error, 'Erro ao atualizar item do inventário.');
+  if (error) {
+    if (String(error.message || '').includes('status') || error.code === '42703') {
+      delete updates.status;
+      const retry = await supabase
+        .from('inventory_items')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (retry.error) throw formatSupabaseError(retry.error, 'Erro ao atualizar item do inventário.');
+      data = retry.data;
+    } else {
+      throw formatSupabaseError(error, 'Erro ao atualizar item do inventário.');
+    }
+  }
 
   // If assignments were provided, sync them
   if (input.assignments) {
@@ -1784,6 +1882,9 @@ export function getItemsForRoom(items: InventoryItem[], roomId: string): Invento
   const result: InventoryItem[] = [];
 
   for (const item of items) {
+    // CRITICAL: Items pending complete information must NEVER appear in room checklists
+    if (item.status === 'pending_information') continue;
+
     const assignment = item.room_assignments?.find((a) => a.room_id === roomId);
 
     if (assignment) {

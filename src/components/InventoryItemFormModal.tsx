@@ -294,12 +294,19 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
 
     if (editingItem) {
       setCurrentStep(1);
-      setName(editingItem.name);
+      const isPending = editingItem.status === 'pending_information';
+      const isPlaceholderName =
+        isPending &&
+        (!editingItem.name ||
+          editingItem.name.startsWith('Item pendente') ||
+          editingItem.name === 'Foto pendente');
+
+      setName(isPlaceholderName ? '' : editingItem.name);
       setCategoryId(editingItem.category_id || '');
-      setInventoryType(editingItem.inventory_type);
+      setInventoryType(editingItem.inventory_type || 'quantity');
       setInspectionType(editingItem.inspection_type || 'physical_integrity');
       setIdentificationCode(editingItem.identification_code || '');
-      setCustomCodeEdited(true);
+      setCustomCodeEdited(!isPending && Boolean(editingItem.identification_code));
       setExistingImagePath(editingItem.image_path || null);
       setDescription(editingItem.description || '');
       setBatchGenerateIndividual(false);
@@ -340,14 +347,25 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
         setExpectedQuantity(editingItem.expected_quantity || 1);
         setDistributionRows([]);
       } else {
-        // Global item
-        setDistributionMode('none');
-        setRoomId('');
-        setSelectedFloorPlanCategoryId(null);
-        setSingleCondition('good');
-        setSingleNotes('');
-        setExpectedQuantity(editingItem.total_quantity ?? editingItem.expected_quantity ?? 1);
-        setDistributionRows([]);
+        // No room assigned yet (e.g. preliminary draft item from bulk photo upload)
+        if (rooms.length > 0) {
+          const targetInitialRoom = defaultRoomId || rooms[0].id;
+          setDistributionMode('single');
+          setRoomId(targetInitialRoom);
+          setSelectedFloorPlanCategoryId(null);
+          setSingleCondition('good');
+          setSingleNotes('');
+          setExpectedQuantity(editingItem.total_quantity ?? editingItem.expected_quantity ?? 1);
+          setDistributionRows([]);
+        } else {
+          setDistributionMode('none');
+          setRoomId('');
+          setSelectedFloorPlanCategoryId(null);
+          setSingleCondition('good');
+          setSingleNotes('');
+          setExpectedQuantity(editingItem.total_quantity ?? editingItem.expected_quantity ?? 1);
+          setDistributionRows([]);
+        }
       }
     } else {
       resetFormState();
@@ -771,6 +789,7 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
           inventory_type: inventoryType,
           inspection_type: inspectionType,
           expected_quantity: effectiveTotalQuantity,
+          status: 'completed',
           identification_code:
             inventoryType === 'individual'
               ? identificationCode.trim().toUpperCase()
@@ -880,10 +899,16 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-white">
-                {isEditing ? 'Editar Item do Inventário' : 'Novo Item do Inventário'}
+                {editingItem?.status === 'pending_information'
+                  ? 'Completar Cadastro do Item'
+                  : isEditing
+                  ? 'Editar Item do Inventário'
+                  : 'Novo Item do Inventário'}
               </h2>
               <p className="text-xs text-slate-400">
-                Fluxo guiado em 3 etapas • Local, Fotografia e Informações
+                {editingItem?.status === 'pending_information'
+                  ? 'Foto pré-carregada do lote • Defina o local e os dados do item'
+                  : 'Fluxo guiado em 3 etapas • Local, Fotografia e Informações'}
               </p>
             </div>
           </div>
@@ -1004,6 +1029,19 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Pending Information Notice */}
+        {editingItem?.status === 'pending_information' && (
+          <div className="mx-5 mt-4 p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-medium flex items-center gap-2.5 animate-fadeIn">
+            <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+            <div>
+              <p className="font-bold text-amber-300">Item pendente de informações (Lote de Fotos)</p>
+              <p className="text-[11px] text-amber-200/90 mt-0.5">
+                A foto já está vinculada. Selecione o cômodo de destino, defina o nome e a categoria para concluir o cadastro.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Global Feedback Banners */}
         {fastSuccessBanner && (

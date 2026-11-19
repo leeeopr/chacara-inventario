@@ -32,6 +32,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { BulkPhotoUploadModal } from './components/BulkPhotoUploadModal';
 import { CategoryManagementModal } from './components/CategoryManagementModal';
 import { ChecklistHistoryModal } from './components/ChecklistHistoryModal';
 import { CodePrefixesModal } from './components/CodePrefixesModal';
@@ -127,6 +128,7 @@ export function App() {
   const [isAdminDrawerOpen, setIsAdminDrawerOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
+  const [isBulkPhotoUploadOpen, setIsBulkPhotoUploadOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [selectedDetailItem, setSelectedDetailItem] = useState<InventoryItem | null>(null);
   const [deletingItem, setDeletingItem] = useState<InventoryItem | null>(null);
@@ -160,6 +162,7 @@ export function App() {
     roomId: 'all',
     categoryId: 'all',
     inventoryType: 'all',
+    status: 'all',
     sortBy: 'newest',
   });
 
@@ -179,6 +182,10 @@ export function App() {
       // 1. Modals & Dialogs (Priority order)
       if (isPreChecklistExecutionOpen) {
         setIsPreChecklistExecutionOpen(false);
+        return true;
+      }
+      if (isBulkPhotoUploadOpen) {
+        setIsBulkPhotoUploadOpen(false);
         return true;
       }
       if (isPreChecklistConfigOpen) {
@@ -254,6 +261,7 @@ export function App() {
     return unregister;
   }, [
     isPreChecklistExecutionOpen,
+    isBulkPhotoUploadOpen,
     isPreChecklistConfigOpen,
     isVisualScaleModalOpen,
     selectedDetailItem,
@@ -534,6 +542,10 @@ export function App() {
     const q = filters.search.trim().toLowerCase();
 
     const list = items.filter((item) => {
+      if (filters.status && filters.status !== 'all') {
+        const itemStatus = item.status || 'completed';
+        if (itemStatus !== filters.status) return false;
+      }
       if (filters.roomId !== 'all') {
         const matchesDirect = item.room_id === filters.roomId;
         const matchesAssignment = item.room_assignments?.some((a) => a.room_id === filters.roomId);
@@ -586,24 +598,34 @@ export function App() {
     let totalPhysicalUnits = 0;
     let individualCount = 0;
     let quantityBasedCount = 0;
+    let pendingCount = 0;
 
     for (const it of items) {
-      totalPhysicalUnits += it.total_quantity ?? it.expected_quantity;
-      if (it.inventory_type === 'individual') individualCount += 1;
-      else quantityBasedCount += 1;
+      if (it.status === 'pending_information') {
+        pendingCount += 1;
+      } else {
+        totalPhysicalUnits += it.total_quantity ?? it.expected_quantity;
+        if (it.inventory_type === 'individual') individualCount += 1;
+        else quantityBasedCount += 1;
+      }
     }
 
     return {
       totalEntries: items.length,
+      completedEntries: items.length - pendingCount,
       totalPhysicalUnits,
       individualCount,
       quantityBasedCount,
+      pendingCount,
     };
   }, [items]);
 
   const countByRoom = useMemo(() => {
     const map: Record<string, number> = {};
     for (const item of items) {
+      // Pending draft items must NOT be counted in room metrics or checklists
+      if (item.status === 'pending_information') continue;
+
       if (item.room_assignments && item.room_assignments.length > 0) {
         for (const a of item.room_assignments) {
           if (a.room_id) {
@@ -818,6 +840,17 @@ export function App() {
 
               <button
                 type="button"
+                onClick={() => setIsBulkPhotoUploadOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                title="Cadastrar múltiplos itens através de fotos em lote"
+              >
+                <Camera className="w-4 h-4 text-amber-400" />
+                <span className="hidden sm:inline">Cadastro em Lote</span>
+                <span className="sm:hidden">Lote</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => {
                   setEditingItem(null);
                   setIsItemFormOpen(true);
@@ -834,19 +867,56 @@ export function App() {
         {/* Admin Inventory Management Content */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-5 space-y-5">
           {/* KPI Summary Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800/90 flex items-center justify-between">
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   Itens Cadastrados
                 </span>
-                <p className="text-2xl font-black text-white mt-0.5">{metrics.totalEntries}</p>
+                <p className="text-2xl font-black text-white mt-0.5">{metrics.completedEntries}</p>
                 <span className="text-[11px] text-slate-500">
                   {metrics.totalPhysicalUnits} unidades físicas
                 </span>
               </div>
               <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
                 <Boxes className="w-5 h-5" />
+              </div>
+            </div>
+
+            {/* Pending Draft Items KPI Card */}
+            <div
+              onClick={() =>
+                setFilters((f) => ({
+                  ...f,
+                  status: f.status === 'pending_information' ? 'all' : 'pending_information',
+                }))
+              }
+              className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                filters.status === 'pending_information'
+                  ? 'bg-amber-500/25 border-amber-500 ring-2 ring-amber-500/40 shadow-lg shadow-amber-500/10'
+                  : metrics.pendingCount > 0
+                  ? 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500/60'
+                  : 'bg-slate-900/90 border-slate-800/90'
+              }`}
+              title="Filtrar itens pendentes de informações"
+            >
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                  Itens Pendentes
+                </span>
+                <p className="text-2xl font-black text-amber-400 mt-0.5">
+                  {metrics.pendingCount}
+                </p>
+                <span className="text-[11px] text-slate-400">
+                  {metrics.pendingCount > 0
+                    ? filters.status === 'pending_information'
+                      ? 'Filtro ativo'
+                      : 'Toque para filtrar'
+                    : 'Nenhum rascunho'}
+                </span>
+              </div>
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <Clock className="w-5 h-5" />
               </div>
             </div>
 
@@ -913,7 +983,7 @@ export function App() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 <select
                   value={filters.roomId}
                   onChange={(e) => setFilters((f) => ({ ...f, roomId: e.target.value }))}
@@ -954,6 +1024,29 @@ export function App() {
                   <option value="all">Tipo: Todos</option>
                   <option value="individual">Individuais</option>
                   <option value="quantity">Por Quantidade</option>
+                </select>
+
+                <select
+                  value={filters.status || 'all'}
+                  onChange={(e) =>
+                    setFilters((f) => ({
+                      ...f,
+                      status: e.target.value as InventoryFilters['status'],
+                    }))
+                  }
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-semibold ${
+                    filters.status === 'pending_information'
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold'
+                      : 'bg-slate-950 border-slate-800 text-slate-200'
+                  }`}
+                >
+                  <option value="all">Status: Todos</option>
+                  <option value="completed">Concluídos</option>
+                  <option value="pending_information">
+                    {metrics.pendingCount > 0
+                      ? `⚠️ Pendentes (${metrics.pendingCount})`
+                      : 'Pendentes (0)'}
+                  </option>
                 </select>
 
                 <select
@@ -1003,6 +1096,44 @@ export function App() {
               </div>
             </div>
           </div>
+
+          {/* Actionable Banner for Pending Information Items */}
+          {metrics.pendingCount > 0 && filters.status !== 'pending_information' && (
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5 text-amber-300">
+                <Clock className="w-4 h-4 shrink-0 text-amber-400" />
+                <span>
+                  Você possui <strong>{metrics.pendingCount}</strong> {metrics.pendingCount === 1 ? 'item' : 'itens'} com fotos enviadas aguardando preenchimento de informações.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFilters((f) => ({ ...f, status: 'pending_information' }))}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shrink-0 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              >
+                <span>Ver Itens Pendentes</span>
+                <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+              </button>
+            </div>
+          )}
+
+          {filters.status === 'pending_information' && (
+            <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5 text-amber-300">
+                <Clock className="w-4 h-4 shrink-0 text-amber-400" />
+                <span>
+                  Exibindo apenas <strong>Itens Pendentes de Informações</strong> ({filteredItems.length}). Toque em <strong>Completar cadastro</strong> para preencher cômodo e informações do item.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFilters((f) => ({ ...f, status: 'all' }))}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs shrink-0 transition-colors cursor-pointer"
+              >
+                Mostrar todos os itens
+              </button>
+            </div>
+          )}
 
           {/* Cards or Table */}
           {items.length === 0 ? (
@@ -1055,7 +1186,18 @@ export function App() {
                       onClick={() => setSelectedDetailItem(item)}
                       className="hover:bg-slate-800/40 cursor-pointer"
                     >
-                      <td className="py-3 px-4 font-bold text-white">{item.name}</td>
+                      <td className="py-3 px-4 font-bold text-white">
+                        <div className="flex items-center gap-2">
+                          <span className={item.status === 'pending_information' ? 'text-amber-300' : ''}>
+                            {item.name}
+                          </span>
+                          {item.status === 'pending_information' && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-extrabold text-[10px] border border-amber-500/40 uppercase">
+                              Pendente
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-3 px-4 font-mono text-amber-300">
                         {item.identification_code || '—'}
                       </td>
@@ -1067,17 +1209,31 @@ export function App() {
                         {item.expected_quantity}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingItem(item);
-                            setIsItemFormOpen(true);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-white"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
+                        {item.status === 'pending_information' ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingItem(item);
+                              setIsItemFormOpen(true);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all"
+                          >
+                            Completar
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingItem(item);
+                              setIsItemFormOpen(true);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-white"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1230,6 +1386,22 @@ export function App() {
           onActionsUpdated={(updated) => setPreChecklistActions(updated)}
           onActionsChanged={loadAllData}
           onToast={showToast}
+        />
+
+        {/* Bulk Photo Upload Modal */}
+        <BulkPhotoUploadModal
+          isOpen={isBulkPhotoUploadOpen}
+          onClose={() => setIsBulkPhotoUploadOpen(false)}
+          onSuccess={async (count) => {
+            await loadAllData();
+            showToast(`${count} ${count === 1 ? 'item preliminar criado' : 'itens preliminares criados'} com sucesso!`);
+          }}
+          onGoToPendingItems={async () => {
+            await loadAllData();
+            setIsBulkPhotoUploadOpen(false);
+            setFilters((f) => ({ ...f, status: 'pending_information' }));
+            showToast('Exibindo itens pendentes de informações.');
+          }}
         />
 
         {toastNotification}

@@ -252,6 +252,32 @@ export const InventoryItemDetailModal: React.FC<InventoryItemDetailModalProps> =
             )}
           </div>
 
+          {/* Pending Information Banner */}
+          {item.status === 'pending_information' && (
+            <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                <div>
+                  <p className="font-extrabold text-amber-300 text-sm">Item pendente de informações</p>
+                  <p className="text-xs text-amber-200/90 mt-0.5">
+                    Este item foi criado via envio em lote de fotos. Complete os dados para liberá-lo para conferências.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEdit(item);
+                }}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shrink-0 flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+              >
+                <Edit3 className="w-4 h-4 stroke-[2.5]" />
+                <span>Completar Cadastro</span>
+              </button>
+            </div>
+          )}
+
           {/* Primary Metadata Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/90">

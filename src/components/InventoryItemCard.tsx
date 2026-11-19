@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  AlertCircle,
   AlertTriangle,
   Camera,
   Edit3,
@@ -73,31 +74,40 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = ({
 
         {/* Top-left Identification Code or Type Badge */}
         <div className="absolute top-2.5 left-2.5 flex flex-wrap items-center gap-1.5">
-          {item.identification_code && (
+          {item.status === 'pending_information' ? (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black text-xs tracking-wider shadow-md">
-              <Hash className="w-3 h-3 stroke-[3]" />
-              {item.identification_code}
+              <AlertTriangle className="w-3.5 h-3.5 stroke-[2.5]" />
+              Pendente
             </span>
+          ) : (
+            <>
+              {item.identification_code && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black text-xs tracking-wider shadow-md">
+                  <Hash className="w-3 h-3 stroke-[3]" />
+                  {item.identification_code}
+                </span>
+              )}
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold backdrop-blur-md shadow ${
+                  isIndividual
+                    ? 'bg-indigo-500/90 text-white'
+                    : 'bg-emerald-500/90 text-slate-950'
+                }`}
+              >
+                {isIndividual ? (
+                  <>
+                    <Tag className="w-3 h-3" />
+                    Individual
+                  </>
+                ) : (
+                  <>
+                    <Layers className="w-3 h-3" />
+                    Quantidade
+                  </>
+                )}
+              </span>
+            </>
           )}
-          <span
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold backdrop-blur-md shadow ${
-              isIndividual
-                ? 'bg-indigo-500/90 text-white'
-                : 'bg-emerald-500/90 text-slate-950'
-            }`}
-          >
-            {isIndividual ? (
-              <>
-                <Tag className="w-3 h-3" />
-                Individual
-              </>
-            ) : (
-              <>
-                <Layers className="w-3 h-3" />
-                Quantidade
-              </>
-            )}
-          </span>
         </div>
 
         {/* Top-right Total Quantity Pill */}
@@ -206,42 +216,71 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = ({
 
         {/* Action Bar */}
         <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(item);
-            }}
-            className="text-xs font-semibold text-slate-400 hover:text-emerald-400 flex items-center gap-1 transition-colors"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span>Ver detalhes & cômodos</span>
-          </button>
+          {item.status === 'pending_information' ? (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(item);
+                }}
+                className="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 transition-all"
+              >
+                <Edit3 className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Completar cadastro</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(item);
+                }}
+                title="Excluir rascunho"
+                className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(item);
+                }}
+                className="text-xs font-semibold text-slate-400 hover:text-emerald-400 flex items-center gap-1 transition-colors"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Ver detalhes & cômodos</span>
+              </button>
 
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(item);
-              }}
-              title="Editar item"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-            >
-              <Edit3 className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(item);
-              }}
-              title="Excluir item"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(item);
+                  }}
+                  title="Editar item"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(item);
+                  }}
+                  title="Excluir item"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
