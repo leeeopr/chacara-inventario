@@ -436,51 +436,48 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
         </div>
       </header>
 
-      {/* Scrollable / Flexible Inspection Body */}
+      {/* ZONE 1: Foto do Item e Identificação (Respeita a proporção da imagem) */}
       {currentItem && (
-        <main className="flex-1 max-w-xl w-full mx-auto px-3 sm:px-4 py-2 flex flex-col justify-between gap-2.5 overflow-y-auto">
-          {/* Card do Item com Fotografia Generosa */}
-          <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl shrink-0">
-            {/* Foto Prominente */}
+        <section className="w-full max-w-xl mx-auto px-3 sm:px-4 pt-1.5 shrink-0">
+          <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-lg">
+            {/* Foto Prominente com proporções preservadas (object-contain) */}
             <div
-              className="relative w-full h-44 sm:h-52 bg-slate-950 overflow-hidden flex items-center justify-center cursor-pointer group"
+              className="relative w-full h-40 sm:h-48 bg-slate-950 flex items-center justify-center p-1.5 cursor-pointer group"
               onClick={() => setIsPhotoZoomOpen(true)}
-              title="Toque para ampliar foto"
+              title="Toque para ampliar foto em tela cheia"
             >
               {imageUrl ? (
                 <img
                   src={imageUrl}
                   alt={currentItem.name}
-                  className="w-full h-full object-cover group-active:scale-105 transition-transform"
+                  className="max-h-full max-w-full object-contain mx-auto rounded-xl group-active:scale-105 transition-transform"
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center p-4 text-slate-600">
-                  <Camera className="w-12 h-12 mb-1.5 opacity-40" />
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-500">
-                    Sem fotografia cadastrada
-                  </span>
+                  <Camera className="w-10 h-10 mb-1 opacity-40" />
+                  <span className="text-xs font-bold text-slate-500">Sem fotografia</span>
                 </div>
               )}
 
               {/* Tag de Código (#UT08) */}
               {currentItem.identification_code && (
-                <div className="absolute top-2.5 left-2.5">
-                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-amber-400 text-slate-950 font-black text-sm font-mono shadow-md border border-amber-300">
-                    <Hash className="w-3.5 h-3.5 stroke-[3]" />
+                <div className="absolute top-2 left-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-400 text-slate-950 font-black text-xs font-mono shadow border border-amber-300">
+                    <Hash className="w-3 h-3 stroke-[3]" />
                     {currentItem.identification_code}
                   </span>
                 </div>
               )}
 
               {/* Tag de Quantidade / Tipo */}
-              <div className="absolute top-2.5 right-2.5">
+              <div className="absolute top-2 right-2">
                 {!isIndividual ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs shadow-md border border-emerald-400">
-                    <Package className="w-3.5 h-3.5 stroke-[2.5]" />
-                    {currentItem.expected_quantity} UNIDADES
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-500 text-slate-950 font-black text-xs shadow border border-emerald-400">
+                    <Package className="w-3 h-3 stroke-[2.5]" />
+                    {currentItem.expected_quantity} UN
                   </span>
                 ) : (
-                  <span className="px-2.5 py-1 rounded-xl bg-slate-900/90 text-slate-200 font-extrabold text-xs backdrop-blur-md border border-slate-700 shadow-md">
+                  <span className="px-2 py-0.5 rounded-lg bg-slate-900/90 text-slate-200 font-extrabold text-[11px] backdrop-blur-md border border-slate-700 shadow">
                     Individual
                   </span>
                 )}
@@ -490,68 +487,54 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
               {currentResult && (
                 <div className="absolute bottom-2 left-2">
                   <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl font-bold text-xs backdrop-blur-md shadow-md ${
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold text-[11px] backdrop-blur-md shadow ${
                       currentResult.status === 'found'
                         ? 'bg-emerald-500/95 text-slate-950'
                         : 'bg-rose-500/95 text-white'
                     }`}
                   >
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    {currentResult.status === 'found'
-                      ? 'Conferido: ENCONTRADO'
-                      : `Problema: ${currentResult.notes || currentResult.status}`}
+                    <Check className="w-3 h-3 stroke-[3]" />
+                    {currentResult.status === 'found' ? 'Conferido' : 'Problema'}
                   </span>
                 </div>
               )}
-
-              {/* Dica de Toque para Ampliar */}
-              <div className="absolute bottom-2 right-2 opacity-80 group-hover:opacity-100 transition-opacity">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 text-slate-300 font-bold text-[10px] backdrop-blur-sm border border-white/10">
-                  <Eye className="w-3 h-3" />
-                  Ampliar
-                </span>
-              </div>
             </div>
 
-            {/* Informações do Item (Nome e Estado Físico) */}
-            <div className="p-3 sm:p-3.5 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="text-base sm:text-lg font-black text-white truncate leading-tight">
-                  {currentItem.name}
-                </h2>
+            {/* Faixa com Nome e Condição */}
+            <div className="px-3 py-2 bg-slate-900/95 border-t border-slate-800/80 flex items-center justify-between gap-2">
+              <h2 className="text-base sm:text-lg font-black text-white truncate leading-snug">
+                {currentItem.name}
+              </h2>
 
-                {(() => {
-                  const conditionCfg = getConditionConfig(currentItem.condition_status);
-                  return (
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold border shrink-0 ${conditionCfg.badgeBg} ${conditionCfg.badgeBorder} ${conditionCfg.badgeText}`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${conditionCfg.dotColor}`} />
-                      {conditionCfg.shortLabel}
-                    </span>
-                  );
-                })()}
-              </div>
-
-              {currentItem.condition_notes && (
-                <p className="text-xs text-slate-400 truncate">
-                  📝 {currentItem.condition_notes}
-                </p>
-              )}
+              {(() => {
+                const conditionCfg = getConditionConfig(currentItem.condition_status);
+                return (
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold border shrink-0 ${conditionCfg.badgeBg} ${conditionCfg.badgeBorder} ${conditionCfg.badgeText}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${conditionCfg.dotColor}`} />
+                    {conditionCfg.shortLabel}
+                  </span>
+                );
+              })()}
             </div>
           </div>
+        </section>
+      )}
 
-          {/* Card da Pergunta Ativa */}
-          <div className="rounded-2xl bg-slate-900 border border-slate-800 p-3.5 sm:p-4 space-y-2.5 text-center shadow-xl shrink-0">
+      {/* ZONE 2: Pergunta Centralizada NO MEIO DA TELA para facilitar a leitura */}
+      {currentItem && (
+        <main className="flex-1 w-full max-w-xl mx-auto px-3 sm:px-4 flex flex-col justify-center items-center my-auto py-2">
+          <div className="w-full rounded-3xl bg-slate-900 border-2 border-slate-700/80 p-5 sm:p-6 space-y-3 shadow-2xl relative text-center">
             {/* Cabeçalho do Roteiro e Marcadores de Pergunta */}
             <div className="flex items-center justify-between gap-2">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/80 border border-slate-700/60">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-800 border border-slate-700">
                 <div
                   className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${currentInspectionConfig.badgeBg} ${currentInspectionConfig.badgeText}`}
                 >
-                  <InspectionIcon className="w-3 h-3" />
+                  <InspectionIcon className="w-3.5 h-3.5" />
                 </div>
-                <span className={`text-[11px] font-black uppercase tracking-wider ${currentInspectionConfig.badgeText}`}>
+                <span className={`text-xs font-black uppercase tracking-wider ${currentInspectionConfig.badgeText}`}>
                   {currentInspectionConfig.badgeLabel}
                 </span>
               </div>
@@ -564,16 +547,16 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
                   return (
                     <div
                       key={q.id}
-                      className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black transition-all ${
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black transition-all ${
                         isDone
-                          ? 'bg-emerald-500 text-slate-950 font-black'
+                          ? 'bg-emerald-500 text-slate-950 font-black shadow-md'
                           : isCurrent
-                          ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-400/50 scale-105 shadow-sm'
+                          ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-400/50 scale-105 shadow-md'
                           : 'bg-slate-800 text-slate-500'
                       }`}
                       title={`Pergunta ${idx + 1}: ${q.question}`}
                     >
-                      {isDone ? <Check className="w-3 h-3 stroke-[3]" /> : idx + 1}
+                      {isDone ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : idx + 1}
                     </div>
                   );
                 })}
@@ -581,9 +564,9 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
             </div>
 
             {/* Pergunta e Navegação Anterior */}
-            <div className="space-y-1">
+            <div className="space-y-1.5 pt-1">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                <span className="text-[11px] font-black uppercase tracking-wider text-amber-400">
                   Pergunta {questionIndex + 1} de {currentInspectionConfig.questions.length}
                 </span>
 
@@ -591,27 +574,27 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
                   <button
                     type="button"
                     onClick={() => setQuestionIndex((prev) => Math.max(0, prev - 1))}
-                    className="text-[11px] font-bold text-slate-400 hover:text-white flex items-center gap-0.5 py-0.5 px-1.5 rounded-md bg-slate-800 border border-slate-700 transition-colors"
+                    className="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1 py-1 px-2 rounded-lg bg-slate-800 border border-slate-700 transition-colors"
                   >
-                    <ChevronLeft className="w-3 h-3" />
-                    <span>Voltar pergunta</span>
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Pergunta anterior</span>
                   </button>
                 )}
               </div>
 
-              {/* Texto da Pergunta */}
-              <h3 className="text-base sm:text-lg font-black text-white leading-snug tracking-tight px-1">
+              {/* Texto da Pergunta em Destaque Central */}
+              <h3 className="text-xl sm:text-2xl font-black text-white leading-snug tracking-tight px-1">
                 {currentQuestion.question}
               </h3>
 
               {/* Orientação */}
-              <p className="text-xs text-slate-400 leading-relaxed font-medium max-w-md mx-auto">
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium max-w-md mx-auto">
                 {currentInspectionConfig.description}
               </p>
 
               {/* Observação de Desgaste prévio se houver */}
               {currentItem.condition_status && currentItem.condition_status !== 'good' && (
-                <p className="text-[11px] text-amber-300 font-medium bg-amber-500/10 border border-amber-500/25 p-1.5 rounded-xl text-left leading-snug mt-1">
+                <p className="text-xs text-amber-300 font-medium bg-amber-500/10 border border-amber-500/25 p-2 rounded-xl text-left leading-snug mt-1">
                   ℹ️ <strong>Observação:</strong> Este item possui desgaste prévio registrado. Se o item estiver conforme o previsto, responda <strong>SIM</strong>.
                 </p>
               )}
