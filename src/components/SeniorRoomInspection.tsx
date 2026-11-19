@@ -436,22 +436,32 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
         </div>
       </header>
 
-      {/* ZONE 1: Foto do Item e Identificação (Respeita a proporção da imagem) */}
+      {/* ZONE 1: Foto do Item e Identificação (Frame 100% Responsivo) */}
       {currentItem && (
         <section className="w-full max-w-xl mx-auto px-3 sm:px-4 pt-1.5 shrink-0">
           <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-lg">
-            {/* Foto Prominente com frame expandido (seguindo o exemplo do quadrado vermelho) */}
+            {/* Frame da Foto 100% Responsivo */}
             <div
-              className="relative w-full h-64 xs:h-72 sm:h-80 max-h-[38vh] bg-slate-950 flex items-center justify-center p-2 cursor-pointer group"
+              className="relative w-full aspect-[4/3] xs:aspect-[1/1] sm:aspect-[16/10] max-h-[35vh] bg-slate-950 overflow-hidden cursor-pointer group flex items-center justify-center"
               onClick={() => setIsPhotoZoomOpen(true)}
               title="Toque para ampliar foto em tela cheia"
             >
               {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={currentItem.name}
-                  className="max-h-full max-w-full object-contain mx-auto rounded-2xl group-active:scale-105 transition-transform"
-                />
+                <>
+                  {/* Fundo ambiente suave para harmonia visual */}
+                  <img
+                    src={imageUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110"
+                  />
+                  {/* Imagem Principal Responsiva */}
+                  <img
+                    src={imageUrl}
+                    alt={currentItem.name}
+                    className="w-full h-full object-cover relative z-10 group-active:scale-105 transition-transform"
+                  />
+                </>
               ) : (
                 <div className="flex flex-col items-center justify-center p-4 text-slate-600">
                   <Camera className="w-10 h-10 mb-1 opacity-40" />
@@ -461,8 +471,8 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
 
               {/* Tag de Código (#UT08) */}
               {currentItem.identification_code && (
-                <div className="absolute top-2 left-2">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-400 text-slate-950 font-black text-xs font-mono shadow border border-amber-300">
+                <div className="absolute top-2.5 left-2.5 z-20">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-400 text-slate-950 font-black text-xs font-mono shadow-md border border-amber-300">
                     <Hash className="w-3 h-3 stroke-[3]" />
                     {currentItem.identification_code}
                   </span>
@@ -470,14 +480,14 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
               )}
 
               {/* Tag de Quantidade / Tipo */}
-              <div className="absolute top-2 right-2">
+              <div className="absolute top-2.5 right-2.5 z-20">
                 {!isIndividual ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-500 text-slate-950 font-black text-xs shadow border border-emerald-400">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-500 text-slate-950 font-black text-xs shadow-md border border-emerald-400">
                     <Package className="w-3 h-3 stroke-[2.5]" />
                     {currentItem.expected_quantity} UN
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-lg bg-slate-900/90 text-slate-200 font-extrabold text-[11px] backdrop-blur-md border border-slate-700 shadow">
+                  <span className="px-2.5 py-0.5 rounded-lg bg-slate-900/90 text-slate-200 font-extrabold text-[11px] backdrop-blur-md border border-slate-700 shadow-md">
                     Individual
                   </span>
                 )}
@@ -485,9 +495,9 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
 
               {/* Tag de Status Já Conferido */}
               {currentResult && (
-                <div className="absolute bottom-2 left-2">
+                <div className="absolute bottom-2.5 left-2.5 z-20">
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold text-[11px] backdrop-blur-md shadow ${
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold text-[11px] backdrop-blur-md shadow-md ${
                       currentResult.status === 'found'
                         ? 'bg-emerald-500/95 text-slate-950'
                         : 'bg-rose-500/95 text-white'
@@ -498,10 +508,18 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
                   </span>
                 </div>
               )}
+
+              {/* Dica de Toque para Ampliar */}
+              <div className="absolute bottom-2.5 right-2.5 z-20 opacity-80 group-hover:opacity-100 transition-opacity">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/60 text-slate-300 font-bold text-[10px] backdrop-blur-sm border border-white/10">
+                  <Eye className="w-3 h-3" />
+                  Ampliar
+                </span>
+              </div>
             </div>
 
             {/* Faixa com Nome e Condição */}
-            <div className="px-3 py-2 bg-slate-900/95 border-t border-slate-800/80 flex items-center justify-between gap-2">
+            <div className="px-3.5 py-2.5 bg-slate-900/95 border-t border-slate-800/80 flex items-center justify-between gap-2">
               <h2 className="text-base sm:text-lg font-black text-white truncate leading-snug">
                 {currentItem.name}
               </h2>
@@ -510,7 +528,7 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
                 const conditionCfg = getConditionConfig(currentItem.condition_status);
                 return (
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold border shrink-0 ${conditionCfg.badgeBg} ${conditionCfg.badgeBorder} ${conditionCfg.badgeText}`}
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold border shrink-0 ${conditionCfg.badgeBg} ${conditionCfg.badgeBorder} ${conditionCfg.badgeText}`}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full ${conditionCfg.dotColor}`} />
                     {conditionCfg.shortLabel}
