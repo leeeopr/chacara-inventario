@@ -30,6 +30,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import { registerBackHandler } from '../lib/backNavigation';
 import {
   generateNextCodes,
   getCodePrefixRules,
@@ -159,6 +160,54 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fastSuccessBanner, setFastSuccessBanner] = useState<string | null>(null);
+
+  // Register Android Hardware Back Button and Gesture Handler for InventoryItemFormModal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const unregister = registerBackHandler('InventoryItemFormModal', 60, () => {
+      // 1. Close live camera modal if active
+      if (isLiveCameraOpen) {
+        setIsLiveCameraOpen(false);
+        return true;
+      }
+      // 2. Close quick add room popup if open
+      if (showQuickRoom) {
+        setShowQuickRoom(false);
+        return true;
+      }
+      // 3. Close quick add category popup if open
+      if (showQuickCategory) {
+        setShowQuickCategory(false);
+        return true;
+      }
+      // 4. Multi-step form step back: Step 3 -> Step 2
+      if (currentStep === 3) {
+        setCurrentStep(2);
+        return true;
+      }
+      // 5. Multi-step form step back: Step 2 -> Step 1
+      if (currentStep === 2) {
+        setCurrentStep(1);
+        return true;
+      }
+      // 6. At Step 1, close modal
+      if (currentStep === 1) {
+        onClose();
+        return true;
+      }
+      return false;
+    });
+
+    return unregister;
+  }, [
+    isOpen,
+    isLiveCameraOpen,
+    showQuickRoom,
+    showQuickCategory,
+    currentStep,
+    onClose,
+  ]);
 
   // File inputs
   const cameraInputRef = useRef<HTMLInputElement | null>(null);

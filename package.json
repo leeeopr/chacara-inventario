@@ -1,6 +1,6 @@
 {
   "name": "chacara-inventario-app",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Sistema de Gestão Dinâmica de Inventário de Propriedade / Chácara",
   "type": "module",
   "scripts": {
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@capacitor/android": "^6.1.2",
+    "@capacitor/app": "^6.0.3",
     "@capacitor/cli": "^6.1.2",
     "@capacitor/core": "^6.1.2",
     "@supabase/supabase-js": "^2.49.1",

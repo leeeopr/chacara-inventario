@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { App as CapApp } from '@capacitor/app';
+import { registerBackHandler, setRootBackAction } from './lib/backNavigation';
 import {
   AlertCircle,
   ArrowLeft,
@@ -150,6 +152,113 @@ export function App() {
     const timer = setTimeout(() => setToastMsg(null), 4000);
     return () => clearTimeout(timer);
   }, [toastMsg]);
+
+  // Register Android Hardware Back Button and Gesture Handler for App modals and secondary screens
+  useEffect(() => {
+    const unregister = registerBackHandler('AppModalsAndScreens', 10, () => {
+      // 1. Modals & Dialogs (Priority order)
+      if (selectedDetailItem) {
+        setSelectedDetailItem(null);
+        return true;
+      }
+      if (deletingItem) {
+        setDeletingItem(null);
+        return true;
+      }
+      if (isAdminDrawerOpen) {
+        setIsAdminDrawerOpen(false);
+        return true;
+      }
+      if (isHistoryModalOpen) {
+        setIsHistoryModalOpen(false);
+        return true;
+      }
+      if (isFloorPlanModalOpen) {
+        setIsFloorPlanModalOpen(false);
+        return true;
+      }
+      if (isRoomsModalOpen) {
+        setIsRoomsModalOpen(false);
+        return true;
+      }
+      if (isRoomOrderModalOpen) {
+        setIsRoomOrderModalOpen(false);
+        return true;
+      }
+      if (isRoomCategoriesModalOpen) {
+        setIsRoomCategoriesModalOpen(false);
+        return true;
+      }
+      if (isCategoriesModalOpen) {
+        setIsCategoriesModalOpen(false);
+        return true;
+      }
+      if (isPrefixesModalOpen) {
+        setIsPrefixesModalOpen(false);
+        return true;
+      }
+      if (isSupabaseModalOpen) {
+        setIsSupabaseModalOpen(false);
+        return true;
+      }
+      if (isOtaModalOpen) {
+        setIsOtaModalOpen(false);
+        return true;
+      }
+      if (isOtaSettingsModalOpen) {
+        setIsOtaSettingsModalOpen(false);
+        return true;
+      }
+
+      // 2. Secondary screen navigation (e.g. Admin Inventory -> Checklist Main)
+      if (appScreen === 'admin_inventory') {
+        setAppScreen('checklist_main');
+        return true;
+      }
+
+      return false;
+    });
+
+    return unregister;
+  }, [
+    selectedDetailItem,
+    deletingItem,
+    isAdminDrawerOpen,
+    isHistoryModalOpen,
+    isFloorPlanModalOpen,
+    isRoomsModalOpen,
+    isRoomOrderModalOpen,
+    isRoomCategoriesModalOpen,
+    isCategoriesModalOpen,
+    isPrefixesModalOpen,
+    isSupabaseModalOpen,
+    isOtaModalOpen,
+    isOtaSettingsModalOpen,
+    appScreen,
+  ]);
+
+  // Root screen exit protection (double back tap within 2.5s to exit app from main checklist screen)
+  const lastBackPressRef = useRef<number>(0);
+
+  useEffect(() => {
+    setRootBackAction(() => {
+      const now = Date.now();
+      if (now - lastBackPressRef.current < 2500) {
+        try {
+          CapApp.exitApp();
+        } catch {
+          // In standard web browser fallback
+        }
+      } else {
+        lastBackPressRef.current = now;
+        showToast('Pressione novamente para sair do aplicativo');
+      }
+    });
+
+    return () => {
+      setRootBackAction(null);
+    };
+  }, [showToast]);
 
   // Load inventory items, rooms, categories and active checklist session
   const loadAllData = useCallback(async () => {

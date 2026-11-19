@@ -19,6 +19,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import { registerBackHandler } from '../lib/backNavigation';
 import { getConditionConfig } from '../lib/conditionUtils';
 import {
   getInspectionTypeConfig,
@@ -99,6 +100,7 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
   // Modals
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [isQuantityModalOpen, setIsQuantityModalOpen] = useState(false);
+  const [isPhotoZoomOpen, setIsPhotoZoomOpen] = useState(false);
   const [celebrationState, setCelebrationState] = useState<{
     open: boolean;
     type: 'room' | 'all';
@@ -108,6 +110,50 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
     type: 'room',
     nextRoom: null,
   });
+
+  // Register Android Hardware Back Button and Gesture Handler for SeniorRoomInspection
+  useEffect(() => {
+    const unregister = registerBackHandler('SeniorRoomInspection', 50, () => {
+      // 1. Close full-screen photo zoom preview if open
+      if (isPhotoZoomOpen) {
+        setIsPhotoZoomOpen(false);
+        return true;
+      }
+      // 2. Close issue modal if open
+      if (isIssueModalOpen) {
+        setIsIssueModalOpen(false);
+        return true;
+      }
+      // 3. Close quantity adjust modal if open
+      if (isQuantityModalOpen) {
+        setIsQuantityModalOpen(false);
+        return true;
+      }
+      // 4. Close celebration overlay if open
+      if (celebrationState.open) {
+        setCelebrationState({ open: false, type: 'room', nextRoom: null });
+        return true;
+      }
+      // 5. If inside multi-step checklist questions (e.g. Q3 or Q2), step back to previous question
+      if (questionIndex > 0) {
+        setQuestionIndex((prev) => Math.max(0, prev - 1));
+        return true;
+      }
+      // 6. If on the first question, navigate back to the room selection overview screen.
+      // (All recorded item inspections in this session remain 100% saved and intact)
+      onBackToRooms();
+      return true;
+    });
+
+    return unregister;
+  }, [
+    isPhotoZoomOpen,
+    isIssueModalOpen,
+    isQuantityModalOpen,
+    celebrationState.open,
+    questionIndex,
+    onBackToRooms,
+  ]);
 
   const currentItem = roomItems[currentIndex] || null;
   const isIndividual = currentItem?.inventory_type === 'individual';
@@ -341,29 +387,24 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col pb-8 select-none">
-      {/* Top Header - High contrast, huge room title & progress */}
-      <header className="sticky top-0 z-30 bg-slate-900/95 border-b-2 border-slate-800 p-3 sm:p-4 backdrop-blur-md">
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between select-none pb-[max(1rem,env(safe-area-inset-bottom))]">
+      {/* Top Header - High contrast room title & progress */}
+      <header className="sticky top-0 z-30 bg-slate-900/95 border-b-2 border-slate-800 p-2.5 sm:p-3 backdrop-blur-md">
+        <div className="max-w-xl mx-auto flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={onBackToRooms}
-            className="py-2.5 px-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-slate-700 text-white font-extrabold text-sm sm:text-base flex items-center gap-2 border border-slate-700 shrink-0"
+            className="py-2 px-3 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-slate-700 text-white font-extrabold text-xs sm:text-sm flex items-center gap-1.5 border border-slate-700 shrink-0"
           >
-            <ArrowLeft className="w-5 h-5 stroke-[3]" />
-            <span className="hidden xs:inline">Cômodos</span>
+            <ArrowLeft className="w-4 h-4 stroke-[3]" />
+            <span>Cômodos</span>
           </button>
 
-          <div className="text-center min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl font-black text-white truncate tracking-tight uppercase">
+          <div className="text-center min-w-0 flex-1 px-1">
+            <h1 className="text-base sm:text-xl font-black text-white truncate tracking-tight uppercase">
               {room.name}
             </h1>
-            {room.suite?.name && (
-              <p className="text-[11px] font-bold text-purple-300 uppercase tracking-wider">
-                {room.suite.name}
-              </p>
-            )}
-            <p className="text-xs sm:text-sm font-extrabold text-emerald-400">
+            <p className="text-[11px] sm:text-xs font-extrabold text-emerald-400">
               ITEM {currentIndex + 1} DE {roomItems.length}
             </p>
           </div>
@@ -373,20 +414,20 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
             <button
               type="button"
               onClick={() => setCurrentIndex((idx) => Math.max(0, idx - 1))}
-              className="p-2.5 rounded-2xl bg-slate-800 text-slate-300 font-bold flex items-center gap-1 shrink-0"
+              className="py-2 px-2.5 rounded-2xl bg-slate-800 text-slate-300 font-bold flex items-center gap-1 shrink-0 text-xs"
               title="Item anterior"
             >
-              <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
-              <span className="text-xs font-bold hidden sm:inline">Anterior</span>
+              <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+              <span className="hidden sm:inline">Anterior</span>
             </button>
           ) : (
-            <div className="w-12 shrink-0" />
+            <div className="w-16 shrink-0" />
           )}
         </div>
 
-        {/* Thick, high-visibility progress bar */}
-        <div className="max-w-2xl mx-auto mt-2.5">
-          <div className="w-full h-3 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
+        {/* High-visibility progress bar */}
+        <div className="max-w-xl mx-auto mt-2">
+          <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
             <div
               className="h-full bg-emerald-500 transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
@@ -395,245 +436,278 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
         </div>
       </header>
 
-      {/* Main Single Item Inspection Area */}
-      <main className="flex-1 max-w-2xl w-full mx-auto p-4 flex flex-col justify-between gap-4">
-        {currentItem && (
-          <>
-            {/* Visual Item Showcase */}
-            <div className="rounded-3xl bg-slate-900 border-2 border-slate-800 overflow-hidden shadow-2xl flex flex-col">
-              {/* Large Photograph */}
-              <div className="relative aspect-[16/11] w-full bg-slate-950 overflow-hidden flex items-center justify-center">
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt={currentItem.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center p-6 text-slate-600">
-                    <Camera className="w-16 h-16 mb-2 opacity-30" />
-                    <span className="text-sm font-black uppercase tracking-wider text-slate-500">
-                      Sem fotografia cadastrada
-                    </span>
-                  </div>
-                )}
-
-                {/* Identification Code Tag (TG01, TM01, TP01...) */}
-                {currentItem.identification_code && (
-                  <div className="absolute top-4 left-4">
-                    <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-amber-400 text-slate-950 font-black text-lg sm:text-xl font-mono shadow-2xl border-2 border-amber-300">
-                      <Hash className="w-5 h-5 stroke-[3]" />
-                      {currentItem.identification_code}
-                    </span>
-                  </div>
-                )}
-
-                {/* Quantity badge for quantity-based items */}
-                {!isIndividual && (
-                  <div className="absolute top-4 right-4">
-                    <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-emerald-500 text-slate-950 font-black text-base sm:text-lg shadow-2xl border-2 border-emerald-400">
-                      <Package className="w-5 h-5 stroke-[3]" />
-                      {currentItem.expected_quantity}{' '}
-                      {currentItem.expected_quantity === 1 ? 'UN' : 'UNIDADES'}
-                    </span>
-                  </div>
-                )}
-
-                {/* If already inspected in this session, show existing status */}
-                {currentResult && (
-                  <div className="absolute bottom-3 left-3">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs backdrop-blur-md shadow-lg ${
-                        currentResult.status === 'found'
-                          ? 'bg-emerald-500/90 text-slate-950'
-                          : 'bg-rose-500/90 text-white'
-                      }`}
-                    >
-                      <Check className="w-4 h-4 stroke-[3]" />
-                      {currentResult.status === 'found'
-                        ? 'Já conferido como ENCONTRADO'
-                        : `Problema: ${currentResult.notes || currentResult.status}`}
-                    </span>
-                  </div>
-                )}
+      {/* ZONE 1: Compact Item Identity Strip (Visually Secondary, Compact) */}
+      {currentItem && (
+        <section className="w-full max-w-xl mx-auto px-3 sm:px-4 pt-2 shrink-0">
+          <div className="rounded-2xl bg-slate-900/90 border border-slate-800/90 p-2 sm:p-2.5 flex items-center gap-3 shadow-lg">
+            {/* Clickable Thumbnail with Zoom Prompt */}
+            <button
+              type="button"
+              onClick={() => setIsPhotoZoomOpen(true)}
+              className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-slate-950 border border-slate-700/80 shrink-0 group focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              title="Toque para ampliar foto"
+            >
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={currentItem.name}
+                  className="w-full h-full object-cover group-active:scale-105 transition-transform"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-600">
+                  <Camera className="w-6 h-6 opacity-40" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Eye className="w-4 h-4 text-white drop-shadow" />
               </div>
+            </button>
 
-              {/* Item Details Text */}
-              <div className="p-5 sm:p-6 space-y-2">
-                <span className="text-xs font-black uppercase tracking-wider text-emerald-400 block">
-                  {isIndividual ? 'Item Individual' : 'Controle por Quantidade'}
-                </span>
+            {/* Item Meta & Name */}
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {currentItem.identification_code && (
+                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-amber-400 text-slate-950 font-black text-xs font-mono shadow-sm">
+                    <Hash className="w-3 h-3 stroke-[3]" />
+                    {currentItem.identification_code}
+                  </span>
+                )}
 
-                <h2 className="text-2xl sm:text-3xl font-black text-white leading-tight">
-                  {currentItem.name}
-                </h2>
+                {!isIndividual ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-extrabold text-[11px] border border-emerald-500/30">
+                    <Package className="w-3 h-3" />
+                    {currentItem.expected_quantity} UN
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 font-extrabold text-[11px]">
+                    Individual
+                  </span>
+                )}
 
-                {/* Baseline physical condition badge and notes */}
                 {(() => {
                   const conditionCfg = getConditionConfig(currentItem.condition_status);
                   return (
-                    <div className="space-y-2 pt-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs sm:text-sm font-black ${conditionCfg.badgeBg} ${conditionCfg.badgeBorder} ${conditionCfg.badgeText}`}
-                        >
-                          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${conditionCfg.dotColor}`} />
-                          <span>Estado Físico Previsto: {conditionCfg.shortLabel.toUpperCase()}</span>
-                        </div>
-                        {currentItem.condition_notes && (
-                          <span className="text-xs sm:text-sm font-bold text-slate-300 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-                            📝 {currentItem.condition_notes}
-                          </span>
-                        )}
-                      </div>
-
-                      {currentItem.condition_status && currentItem.condition_status !== 'good' && (
-                        <p className="text-xs text-amber-300 font-medium bg-amber-500/10 border border-amber-500/25 p-2.5 rounded-xl leading-snug">
-                          ℹ️ <strong>Observação:</strong> Este item já possui desgaste prévio registrado no sistema. Se o item estiver no local conforme o esperado, confirme como <strong>ENCONTRADO</strong>.
-                        </p>
-                      )}
-                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold border ${conditionCfg.badgeBg} ${conditionCfg.badgeBorder} ${conditionCfg.badgeText}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${conditionCfg.dotColor}`} />
+                      {conditionCfg.shortLabel}
+                    </span>
                   );
                 })()}
 
-                {currentItem.description && (
-                  <p className="text-sm sm:text-base font-bold text-slate-300 bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800 leading-relaxed">
-                    💡 {currentItem.description}
-                  </p>
+                {currentResult && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${
+                      currentResult.status === 'found'
+                        ? 'bg-emerald-500 text-slate-950'
+                        : 'bg-rose-500 text-white'
+                    }`}
+                  >
+                    {currentResult.status === 'found' ? '✓ Conferido' : '⚠ Problema'}
+                  </span>
                 )}
               </div>
+
+              <h2 className="text-sm sm:text-base font-black text-white truncate leading-snug">
+                {currentItem.name}
+              </h2>
+
+              {currentItem.condition_notes && (
+                <p className="text-[11px] text-slate-400 truncate">
+                  📝 {currentItem.condition_notes}
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ZONE 2: Visual Focus Area (Question in Center, Slightly Above Midpoint) */}
+      {currentItem && (
+        <main className="flex-1 max-w-xl w-full mx-auto px-4 py-2 flex flex-col justify-center items-center my-auto space-y-3">
+          {/* Inspection Type Badge & Steps Indicator */}
+          <div className="w-full flex items-center justify-between gap-2 px-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-slate-900 border border-slate-800">
+              <div
+                className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${currentInspectionConfig.badgeBg} ${currentInspectionConfig.badgeText}`}
+              >
+                <InspectionIcon className="w-3.5 h-3.5" />
+              </div>
+              <span className={`text-xs font-black uppercase tracking-wider ${currentInspectionConfig.badgeText}`}>
+                {currentInspectionConfig.badgeLabel}
+              </span>
             </div>
 
-            {/* Sequential Inspection Question & Actions Area */}
-            <div className="space-y-3 pt-1">
-              {/* Inspection Type & Question Step Header */}
-              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
+            {/* 3 Step Indicator Dots */}
+            <div className="flex items-center gap-1.5">
+              {currentInspectionConfig.questions.map((q, idx) => {
+                const isDone = idx < questionIndex;
+                const isCurrent = idx === questionIndex;
+                return (
                   <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${currentInspectionConfig.badgeBg} ${currentInspectionConfig.badgeText} border ${currentInspectionConfig.badgeBorder}`}
+                    key={q.id}
+                    className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black transition-all ${
+                      isDone
+                        ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/20'
+                        : isCurrent
+                        ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-400/50 scale-105 shadow-md shadow-amber-400/20'
+                        : 'bg-slate-800/80 text-slate-500'
+                    }`}
+                    title={`Pergunta ${idx + 1}: ${q.question}`}
                   >
-                    <InspectionIcon className="w-5 h-5" />
+                    {isDone ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : idx + 1}
                   </div>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block truncate">
-                      Roteiro de Conferência
-                    </span>
-                    <span className={`text-xs sm:text-sm font-black truncate block ${currentInspectionConfig.badgeText}`}>
-                      {currentInspectionConfig.badgeLabel}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 3 Step Pills */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {currentInspectionConfig.questions.map((q, idx) => {
-                    const isDone = idx < questionIndex;
-                    const isCurrent = idx === questionIndex;
-                    return (
-                      <div
-                        key={q.id}
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black transition-all ${
-                          isDone
-                            ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/20'
-                            : isCurrent
-                            ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-400/50 scale-105 shadow-md shadow-amber-400/20'
-                            : 'bg-slate-800 text-slate-500'
-                        }`}
-                        title={`Pergunta ${idx + 1}: ${q.question}`}
-                      >
-                        {isDone ? <Check className="w-4 h-4 stroke-[3]" /> : idx + 1}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Active Question Box */}
-              <div className="rounded-3xl bg-slate-900 border-2 border-slate-700/80 p-5 sm:p-6 space-y-3 shadow-2xl relative">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-amber-400">
-                    Pergunta {questionIndex + 1} de {currentInspectionConfig.questions.length}
-                  </span>
-
-                  {questionIndex > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setQuestionIndex((prev) => Math.max(0, prev - 1))}
-                      className="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1 py-1 px-2.5 rounded-lg bg-slate-800 border border-slate-700 transition-colors"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                      <span>Pergunta anterior</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="text-xl sm:text-2xl font-black text-white leading-snug">
-                    {currentQuestion.question}
-                  </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    {currentInspectionConfig.description}
-                  </p>
-                </div>
-              </div>
-
-              {/* Giant Senior-Friendly Touch Buttons */}
-              <div className="space-y-3 pt-1">
-                {/* SIM Button */}
-                <button
-                  type="button"
-                  onClick={handleAnswerSim}
-                  disabled={isSubmitting}
-                  className="w-full py-5 sm:py-6 rounded-3xl bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 font-black text-2xl sm:text-3xl flex items-center justify-center gap-3.5 shadow-2xl shadow-emerald-500/30 transition-all border-b-4 border-emerald-600 disabled:opacity-50"
-                >
-                  <CheckCircle2 className="w-9 h-9 stroke-[3]" />
-                  <span>
-                    {questionIndex < currentInspectionConfig.questions.length - 1
-                      ? 'SIM (CONTINUAR)'
-                      : 'SIM (APROVADO)'}
-                  </span>
-                </button>
-
-                {/* NÃO Button */}
-                <button
-                  type="button"
-                  onClick={handleAnswerNao}
-                  disabled={isSubmitting}
-                  className="w-full py-4 sm:py-5 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 active:scale-98 text-rose-300 hover:text-white font-black text-base sm:text-lg flex items-center justify-center gap-2.5 border-2 border-rose-500/50 shadow-lg shadow-rose-950/30 transition-all"
-                >
-                  <AlertTriangle className="w-6 h-6 stroke-[2.5] text-rose-400" />
-                  <span>NÃO (COM PROBLEMA / DEFEITO)</span>
-                </button>
-
-                {/* Secondary Actions */}
-                <div className="pt-1 flex items-center justify-between gap-2.5">
-                  {!isIndividual && (
-                    <button
-                      type="button"
-                      onClick={() => setIsQuantityModalOpen(true)}
-                      disabled={isSubmitting}
-                      className="flex-1 py-3 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 active:scale-98 text-amber-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-slate-800 transition-colors"
-                    >
-                      <Layers className="w-4 h-4" />
-                      <span>Falta Alguma Unidade</span>
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleItemMissing}
-                    disabled={isSubmitting}
-                    className="flex-1 py-3 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 active:scale-98 text-slate-400 hover:text-rose-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-slate-800 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                    <span>Item não está no cômodo</span>
-                  </button>
-                </div>
-              </div>
+                );
+              })}
             </div>
-          </>
-        )}
-      </main>
+          </div>
+
+          {/* Active Question Box - Prominent, Center Focus, High Contrast */}
+          <div className="w-full rounded-3xl bg-slate-900 border-2 border-slate-700/80 p-5 sm:p-7 shadow-2xl relative text-center space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-black uppercase tracking-wider text-amber-400">
+                Pergunta {questionIndex + 1} de {currentInspectionConfig.questions.length}
+              </span>
+
+              {questionIndex > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setQuestionIndex((prev) => Math.max(0, prev - 1))}
+                  className="text-[11px] font-bold text-slate-400 hover:text-white flex items-center gap-1 py-1 px-2 rounded-lg bg-slate-800 border border-slate-700 transition-colors"
+                >
+                  <ChevronLeft className="w-3 h-3" />
+                  <span>Pergunta anterior</span>
+                </button>
+              )}
+            </div>
+
+            {/* Main Inspection Question */}
+            <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-white leading-snug tracking-tight px-1">
+              {currentQuestion.question}
+            </h3>
+
+            {/* Inspection Guidance / Safe testing instructions */}
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium max-w-md mx-auto">
+              {currentInspectionConfig.description}
+            </p>
+
+            {/* Wear / Previous note reminder if any */}
+            {currentItem.condition_status && currentItem.condition_status !== 'good' && (
+              <p className="text-[11px] sm:text-xs text-amber-300 font-medium bg-amber-500/10 border border-amber-500/25 p-2 rounded-xl text-left leading-snug">
+                ℹ️ <strong>Observação:</strong> Este item possui desgaste prévio registrado. Se o item estiver conforme o previsto, responda <strong>SIM</strong>.
+              </p>
+            )}
+          </div>
+        </main>
+      )}
+
+      {/* ZONE 3: Natural Thumb Reach Area (Answer & Confirmation Buttons) */}
+      {currentItem && (
+        <section className="w-full max-w-xl mx-auto px-4 space-y-2.5 shrink-0">
+          {/* SIM (Primary Action - Large Touch Target) */}
+          <button
+            type="button"
+            onClick={handleAnswerSim}
+            disabled={isSubmitting}
+            className="w-full py-4 sm:py-5 rounded-2xl sm:rounded-3xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-black text-xl sm:text-2xl flex items-center justify-center gap-3 shadow-xl shadow-emerald-500/25 transition-all border-b-4 border-emerald-600 disabled:opacity-50"
+          >
+            <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8 stroke-[3]" />
+            <span>
+              {questionIndex < currentInspectionConfig.questions.length - 1
+                ? 'SIM (CONTINUAR)'
+                : 'SIM (APROVADO)'}
+            </span>
+          </button>
+
+          {/* NÃO (Defect / Issue Confirmation) */}
+          <button
+            type="button"
+            onClick={handleAnswerNao}
+            disabled={isSubmitting}
+            className="w-full py-3 sm:py-3.5 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 active:scale-[0.98] text-rose-300 hover:text-white font-extrabold text-sm sm:text-base flex items-center justify-center gap-2 border-2 border-rose-500/50 shadow-md shadow-rose-950/30 transition-all"
+          >
+            <AlertTriangle className="w-5 h-5 stroke-[2.5] text-rose-400" />
+            <span>NÃO (COM PROBLEMA / DEFEITO)</span>
+          </button>
+
+          {/* Secondary Ergonomic Actions */}
+          <div className="pt-0.5 flex items-center justify-between gap-2">
+            {!isIndividual && (
+              <button
+                type="button"
+                onClick={() => setIsQuantityModalOpen(true)}
+                disabled={isSubmitting}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-800 transition-colors"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Falta Alguma Unidade</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleItemMissing}
+              disabled={isSubmitting}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-slate-400 hover:text-rose-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-800 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Item não está no cômodo</span>
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* Senior Fullscreen Photo Zoom Modal */}
+      {isPhotoZoomOpen && currentItem && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-between p-4 animate-fadeIn"
+          onClick={() => setIsPhotoZoomOpen(false)}
+        >
+          <div className="w-full max-w-xl flex items-center justify-between py-2 text-white">
+            <div className="flex items-center gap-2">
+              {currentItem.identification_code && (
+                <span className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black font-mono text-sm">
+                  #{currentItem.identification_code}
+                </span>
+              )}
+              <span className="font-bold text-sm text-slate-200 truncate max-w-[200px] sm:max-w-xs">
+                {currentItem.name}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPhotoZoomOpen(false)}
+              className="p-2 rounded-xl bg-slate-800 text-slate-200 hover:text-white"
+              aria-label="Fechar ampliação"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <div
+            className="flex-1 w-full max-w-xl flex items-center justify-center p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={currentItem.name}
+                className="max-h-[75vh] max-w-full rounded-2xl object-contain shadow-2xl border border-slate-800"
+              />
+            ) : (
+              <div className="text-center text-slate-500 py-12">
+                <Camera className="w-16 h-16 mx-auto mb-2 opacity-40" />
+                <p className="font-bold">Sem imagem disponível</p>
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-slate-400 py-2">
+            Toque fora ou aperte Voltar para fechar
+          </p>
+        </div>
+      )}
 
       {/* Senior Missing/Damaged Issue Modal */}
       <SeniorIssueModal
