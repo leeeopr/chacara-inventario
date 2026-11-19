@@ -440,9 +440,9 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
       {currentItem && (
         <section className="w-full max-w-xl mx-auto px-3 sm:px-4 pt-1.5 shrink-0">
           <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-lg">
-            {/* Foto Prominente com proporções preservadas (object-contain) */}
+            {/* Foto Prominente com frame expandido (seguindo o exemplo do quadrado vermelho) */}
             <div
-              className="relative w-full h-40 sm:h-48 bg-slate-950 flex items-center justify-center p-1.5 cursor-pointer group"
+              className="relative w-full h-64 xs:h-72 sm:h-80 max-h-[38vh] bg-slate-950 flex items-center justify-center p-2 cursor-pointer group"
               onClick={() => setIsPhotoZoomOpen(true)}
               title="Toque para ampliar foto em tela cheia"
             >
@@ -450,7 +450,7 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
                 <img
                   src={imageUrl}
                   alt={currentItem.name}
-                  className="max-h-full max-w-full object-contain mx-auto rounded-xl group-active:scale-105 transition-transform"
+                  className="max-h-full max-w-full object-contain mx-auto rounded-2xl group-active:scale-105 transition-transform"
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center p-4 text-slate-600">

@@ -1,6 +1,6 @@
 {
   "name": "chacara-inventario-app",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Sistema de Gestão Dinâmica de Inventário de Propriedade / Chácara",
   "type": "module",
   "scripts": {
