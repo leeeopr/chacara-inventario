@@ -12,6 +12,7 @@ import {
   InventoryRoomAssignment,
   Room,
   RoomCategory,
+  RoomChecklistMode,
   RoomType,
   Suite,
   UpdateInventoryItemInput,
@@ -110,11 +111,11 @@ export async function fetchRooms(): Promise<Room[]> {
   ensureConfigured();
   const supabase = getSupabaseClient();
 
-  // Try fetching with suite relation, inspection_order, and room_category
+  // Try fetching with suite relation, inspection_order, room_category, and checklist_mode
   const { data, error } = await supabase
     .from('rooms')
     .select(
-      'id, name, suite_id, room_type, inspection_order, room_category_id, created_at, suite:suites(id, name, created_at, updated_at), room_category:room_categories(id, name, color, icon, display_order)'
+      'id, name, suite_id, room_type, inspection_order, room_category_id, checklist_mode, created_at, suite:suites(id, name, created_at, updated_at), room_category:room_categories(id, name, color, icon, display_order)'
     )
     .order('inspection_order', { ascending: true })
     .order('created_at', { ascending: true });
@@ -122,10 +123,10 @@ export async function fetchRooms(): Promise<Room[]> {
   let rawList: any[] = [];
 
   if (error) {
-    // If room_categories table does not exist yet, fallback to previous query
+    // If room_categories table or checklist_mode column does not exist yet, fallback
     const fallback0 = await supabase
       .from('rooms')
-      .select('id, name, suite_id, room_type, inspection_order, created_at, suite:suites(id, name, created_at, updated_at)')
+      .select('id, name, suite_id, room_type, inspection_order, checklist_mode, created_at, suite:suites(id, name, created_at, updated_at)')
       .order('inspection_order', { ascending: true })
       .order('created_at', { ascending: true });
 
@@ -153,9 +154,10 @@ export async function fetchRooms(): Promise<Room[]> {
     rawList = data || [];
   }
 
-  // Local cache overrides for inspection order and room categories
+  // Local cache overrides for inspection order, room categories, and checklist mode
   let localOrderMap: Map<string, number> | null = null;
   let localCategoryMap: Map<string, string> | null = null;
+  let localModeMap: Map<string, RoomChecklistMode> | null = null;
   if (typeof window !== 'undefined') {
     try {
       const savedOrder = localStorage.getItem('chacara_room_inspection_order_v1');
@@ -166,6 +168,10 @@ export async function fetchRooms(): Promise<Room[]> {
       const savedCatMap = localStorage.getItem('chacara_room_category_assignments_v1');
       if (savedCatMap) {
         localCategoryMap = new Map(Object.entries(JSON.parse(savedCatMap)));
+      }
+      const savedModeMap = localStorage.getItem('chacara_room_checklist_modes_v1');
+      if (savedModeMap) {
+        localModeMap = new Map(Object.entries(JSON.parse(savedModeMap)));
       }
     } catch {
       // ignore
@@ -199,6 +205,11 @@ export async function fetchRooms(): Promise<Room[]> {
       catId = localCategoryMap.get(row.id) || null;
     }
 
+    let mode: RoomChecklistMode = (row.checklist_mode as RoomChecklistMode) || 'standard';
+    if (localModeMap && localModeMap.has(row.id)) {
+      mode = localModeMap.get(row.id)!;
+    }
+
     const catObj = Array.isArray(row.room_category) ? row.room_category[0] || null : row.room_category || null;
 
     return {
@@ -210,6 +221,7 @@ export async function fetchRooms(): Promise<Room[]> {
       room_category_id: catId,
       room_category: catObj,
       floor_plan_shape: shapesMap.get(row.id) || null,
+      checklist_mode: mode,
       created_at: row.created_at,
       suite: Array.isArray(row.suite) ? row.suite[0] || null : row.suite || null,
     };
@@ -262,7 +274,8 @@ export async function createRoom(
   name: string,
   suiteId: string | null = null,
   roomType: RoomType = 'individual',
-  roomCategoryId: string | null = null
+  roomCategoryId: string | null = null,
+  checklistMode: RoomChecklistMode = 'standard'
 ): Promise<Room> {
   ensureConfigured();
   const cleanName = name.trim();
@@ -292,6 +305,7 @@ export async function createRoom(
   const payload: any = {
     name: cleanName,
     inspection_order: nextOrder,
+    checklist_mode: checklistMode,
   };
   if (suiteId) {
     payload.suite_id = suiteId;
@@ -304,18 +318,39 @@ export async function createRoom(
   const { data, error } = await supabase
     .from('rooms')
     .insert(payload)
-    .select('id, name, suite_id, room_type, inspection_order, room_category_id, created_at')
+    .select('id, name, suite_id, room_type, inspection_order, room_category_id, checklist_mode, created_at')
     .single();
 
   if (error) {
-    // If inspection_order or suite_id column doesn't exist yet, retry fallback
+    // If inspection_order, suite_id or checklist_mode column doesn't exist yet, retry fallback
     const fallback = await supabase
       .from('rooms')
       .insert({ name: cleanName })
       .select('id, name, created_at')
       .single();
     if (fallback.error) throw formatSupabaseError(fallback.error, 'Erro ao criar cômodo.');
-    return { ...fallback.data, inspection_order: nextOrder, room_category_id: roomCategoryId } as Room;
+    
+    // Save checklistMode to local cache
+    if (typeof window !== 'undefined' && fallback.data?.id) {
+      try {
+        const raw = localStorage.getItem('chacara_room_checklist_modes_v1') || '{}';
+        const map = JSON.parse(raw);
+        map[fallback.data.id] = checklistMode;
+        localStorage.setItem('chacara_room_checklist_modes_v1', JSON.stringify(map));
+      } catch {}
+    }
+
+    return { ...fallback.data, inspection_order: nextOrder, room_category_id: roomCategoryId, checklist_mode: checklistMode } as Room;
+  }
+
+  // Save to local cache
+  if (typeof window !== 'undefined' && data?.id) {
+    try {
+      const raw = localStorage.getItem('chacara_room_checklist_modes_v1') || '{}';
+      const map = JSON.parse(raw);
+      map[data.id] = checklistMode;
+      localStorage.setItem('chacara_room_checklist_modes_v1', JSON.stringify(map));
+    } catch {}
   }
 
   return data as Room;
@@ -326,7 +361,8 @@ export async function updateRoom(
   name: string,
   suiteId?: string | null,
   roomType?: RoomType,
-  roomCategoryId?: string | null
+  roomCategoryId?: string | null,
+  checklistMode?: RoomChecklistMode
 ): Promise<Room> {
   ensureConfigured();
   const cleanName = name.trim();
@@ -354,12 +390,23 @@ export async function updateRoom(
       } catch {}
     }
   }
+  if (checklistMode !== undefined) {
+    updatePayload.checklist_mode = checklistMode;
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('chacara_room_checklist_modes_v1') || '{}';
+        const map = JSON.parse(raw);
+        map[id] = checklistMode;
+        localStorage.setItem('chacara_room_checklist_modes_v1', JSON.stringify(map));
+      } catch {}
+    }
+  }
 
   const { data, error } = await supabase
     .from('rooms')
     .update(updatePayload)
     .eq('id', id)
-    .select('id, name, suite_id, room_type, inspection_order, room_category_id, created_at')
+    .select('id, name, suite_id, room_type, inspection_order, room_category_id, checklist_mode, created_at')
     .single();
 
   if (error) {
@@ -372,12 +419,37 @@ export async function updateRoom(
         .select('id, name, created_at')
         .single();
       if (fallback.error) throw formatSupabaseError(fallback.error, 'Erro ao atualizar o cômodo.');
-      return fallback.data as Room;
+      return { ...fallback.data, checklist_mode: checklistMode || 'standard' } as Room;
     }
     throw formatSupabaseError(error, 'Erro ao atualizar o cômodo.');
   }
 
   return data as Room;
+}
+
+export async function updateRoomChecklistMode(
+  roomId: string,
+  mode: RoomChecklistMode
+): Promise<void> {
+  ensureConfigured();
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('chacara_room_checklist_modes_v1') || '{}';
+      const map = JSON.parse(raw);
+      map[roomId] = mode;
+      localStorage.setItem('chacara_room_checklist_modes_v1', JSON.stringify(map));
+    } catch {}
+  }
+
+  const supabase = getSupabaseClient();
+  try {
+    const { error } = await supabase.from('rooms').update({ checklist_mode: mode }).eq('id', roomId);
+    if (error) {
+      console.warn('Erro ao atualizar checklist_mode no Supabase (usando fallback local):', error.message);
+    }
+  } catch (err) {
+    console.warn('Exceção ao atualizar checklist_mode no Supabase (usando cache local):', err);
+  }
 }
 
 export async function deleteRoom(id: string): Promise<void> {

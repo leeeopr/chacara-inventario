@@ -58,6 +58,8 @@ export interface Suite {
   rooms?: Room[];
 }
 
+export type RoomChecklistMode = 'standard' | 'quick';
+
 export interface Room {
   id: string;
   name: string;
@@ -69,6 +71,7 @@ export interface Room {
   room_category_id?: string | null;
   room_category?: RoomCategory | null;
   floor_plan_shape?: FloorPlanShape | null;
+  checklist_mode?: RoomChecklistMode;
 }
 
 export interface CreateSuiteInput {

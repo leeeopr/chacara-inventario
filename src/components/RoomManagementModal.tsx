@@ -7,6 +7,7 @@ import {
   BedDouble,
   Check,
   CheckCircle2,
+  ClipboardList,
   Compass,
   Edit3,
   Filter,
@@ -20,6 +21,7 @@ import {
   Trash2,
   Unlink,
   X,
+  Zap,
 } from 'lucide-react';
 import {
   createRoom,
@@ -31,9 +33,10 @@ import {
   seedSuggestedRooms,
   unlinkSuite,
   updateRoom,
+  updateRoomChecklistMode,
   updateSuite,
 } from '../services/inventoryService';
-import { InventoryItem, Room, Suite } from '../types/inventory';
+import { InventoryItem, Room, RoomChecklistMode, Suite } from '../types/inventory';
 
 interface RoomManagementModalProps {
   isOpen: boolean;
@@ -86,6 +89,7 @@ export const RoomManagementModal: React.FC<RoomManagementModalProps> = ({
 
   // Individual Room Form State
   const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomChecklistMode, setNewRoomChecklistMode] = useState<RoomChecklistMode>('standard');
 
   // Suite Form State
   const [suiteName, setSuiteName] = useState('');
@@ -209,6 +213,26 @@ export const RoomManagementModal: React.FC<RoomManagementModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Toggle Room Checklist Mode (Padrão <-> Rápido)
+  const handleToggleChecklistMode = async (room: Room) => {
+    const nextMode: RoomChecklistMode = room.checklist_mode === 'quick' ? 'standard' : 'quick';
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      await updateRoomChecklistMode(room.id, nextMode);
+      setSuccessMsg(
+        `Modo do checklist para "${room.name}" alterado para ${
+          nextMode === 'quick' ? 'Checklist Rápido (Grade 3x3)' : 'Checklist Padrão (1 a 1)'
+        }.`
+      );
+      await onRoomsChanged();
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Erro ao alterar modo do checklist.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Add Individual Room
   const handleAddIndividualRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,8 +241,9 @@ export const RoomManagementModal: React.FC<RoomManagementModalProps> = ({
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
-      await createRoom(newRoomName);
+      await createRoom(newRoomName, null, 'individual', null, newRoomChecklistMode);
       setNewRoomName('');
+      setNewRoomChecklistMode('standard');
       setSuccessMsg('Cômodo cadastrado com sucesso!');
       await onRoomsChanged();
       await loadSuitesList();
@@ -558,26 +583,60 @@ export const RoomManagementModal: React.FC<RoomManagementModalProps> = ({
           {/* Creation Forms */}
           {creationMode === 'individual' ? (
             /* A. Individual Room Form */
-            <form onSubmit={handleAddIndividualRoom} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
-                Nome do Cômodo
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newRoomName}
-                  onChange={(e) => setNewRoomName(e.target.value)}
-                  placeholder="Ex: Cozinha, Sala de Estar, Área da Piscina..."
-                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:outline-none text-sm text-white placeholder-slate-500"
-                />
-                <button
-                  type="submit"
-                  disabled={isLoading || !newRoomName.trim()}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black text-sm flex items-center gap-1.5 shrink-0 transition-all shadow-md"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Adicionar</span>
-                </button>
+            <form onSubmit={handleAddIndividualRoom} className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-3">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                  Nome do Cômodo
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newRoomName}
+                    onChange={(e) => setNewRoomName(e.target.value)}
+                    placeholder="Ex: Cozinha, Sala de Estar, Área da Piscina..."
+                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:outline-none text-sm text-white placeholder-slate-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isLoading || !newRoomName.trim()}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black text-sm flex items-center gap-1.5 shrink-0 transition-all shadow-md"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Adicionar</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-900">
+                <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                  <span>Modo de Inspeção no Checklist:</span>
+                </span>
+                <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setNewRoomChecklistMode('standard')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                      newRoomChecklistMode === 'standard'
+                        ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <ClipboardList className="w-3.5 h-3.5" />
+                    <span>Padrão (1 a 1)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewRoomChecklistMode('quick')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                      newRoomChecklistMode === 'quick'
+                        ? 'bg-amber-400 text-slate-950 shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Rápido (Grade 3x3)</span>
+                  </button>
+                </div>
               </div>
             </form>
           ) : (
@@ -1050,6 +1109,32 @@ export const RoomManagementModal: React.FC<RoomManagementModalProps> = ({
                                     <div className="flex items-center gap-1 shrink-0">
                                       <button
                                         type="button"
+                                        onClick={() => handleToggleChecklistMode(room)}
+                                        title={
+                                          room.checklist_mode === 'quick'
+                                            ? 'Modo Rápido ativo. Clique para alternar para Padrão.'
+                                            : 'Modo Padrão ativo. Clique para alternar para Rápido.'
+                                        }
+                                        className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                                          room.checklist_mode === 'quick'
+                                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+                                            : 'bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+                                        }`}
+                                      >
+                                        {room.checklist_mode === 'quick' ? (
+                                          <>
+                                            <Zap className="w-3 h-3 text-amber-400" />
+                                            <span>Rápido</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <ClipboardList className="w-3 h-3 text-slate-400" />
+                                            <span>Padrão</span>
+                                          </>
+                                        )}
+                                      </button>
+                                      <button
+                                        type="button"
                                         onClick={() => {
                                           onSelectRoomFilter(room.id);
                                           onClose();
@@ -1149,6 +1234,32 @@ export const RoomManagementModal: React.FC<RoomManagementModalProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleChecklistMode(room)}
+                              title={
+                                room.checklist_mode === 'quick'
+                                  ? 'Modo Rápido ativo. Clique para alternar para Padrão.'
+                                  : 'Modo Padrão ativo. Clique para alternar para Rápido.'
+                              }
+                              className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                                room.checklist_mode === 'quick'
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+                                  : 'bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+                              }`}
+                            >
+                              {room.checklist_mode === 'quick' ? (
+                                <>
+                                  <Zap className="w-3 h-3 text-amber-400" />
+                                  <span>Rápido</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ClipboardList className="w-3 h-3 text-slate-400" />
+                                  <span>Padrão</span>
+                                </>
+                              )}
+                            </button>
                             <button
                               type="button"
                               onClick={() => {

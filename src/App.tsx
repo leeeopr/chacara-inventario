@@ -42,6 +42,7 @@ import { InventoryItemDetailModal } from './components/InventoryItemDetailModal'
 import { InventoryItemFormModal } from './components/InventoryItemFormModal';
 import { OtaSettingsModal } from './components/OtaSettingsModal';
 import { OtaUpdateModal } from './components/OtaUpdateModal';
+import { QuickRoomInspection } from './components/QuickRoomInspection';
 import { RoomCategoryManagementModal } from './components/RoomCategoryManagementModal';
 import { RoomManagementModal } from './components/RoomManagementModal';
 import { RoomOrderManagementModal } from './components/RoomOrderManagementModal';
@@ -589,24 +590,42 @@ export function App() {
     </div>
   );
 
-  // 1. SCREEN: Guided Room-by-Room Inspection (Step 2 to 5)
+  // 1. SCREEN: Room Inspection (Quick 3x3 Grid or Standard Guided 1-by-1)
   if (appScreen === 'room_inspection' && activeRoom && activeSession) {
     const roomItems = getItemsForRoom(items, activeRoom.id);
+    const isQuickMode = activeRoom.checklist_mode === 'quick';
+
     return (
       <>
-        <SeniorRoomInspection
-          room={activeRoom}
-          roomItems={roomItems}
-          sessionId={activeSession.id}
-          itemResults={itemResults}
-          allRooms={rooms}
-          completedRoomIds={completedRoomIds}
-          onBackToRooms={() => setAppScreen('checklist_main')}
-          onRecordInspection={handleRecordInspection}
-          onCompleteRoom={handleCompleteRoom}
-          onNavigateToRoom={(nextRoom) => setActiveRoom(nextRoom)}
-          onCompleteAllChecklist={handleCompleteAllChecklist}
-        />
+        {isQuickMode ? (
+          <QuickRoomInspection
+            room={activeRoom}
+            roomItems={roomItems}
+            sessionId={activeSession.id}
+            itemResults={itemResults}
+            allRooms={rooms}
+            completedRoomIds={completedRoomIds}
+            onBackToRooms={() => setAppScreen('checklist_main')}
+            onRecordInspection={handleRecordInspection}
+            onCompleteRoom={handleCompleteRoom}
+            onNavigateToRoom={(nextRoom) => setActiveRoom(nextRoom)}
+            onCompleteAllChecklist={handleCompleteAllChecklist}
+          />
+        ) : (
+          <SeniorRoomInspection
+            room={activeRoom}
+            roomItems={roomItems}
+            sessionId={activeSession.id}
+            itemResults={itemResults}
+            allRooms={rooms}
+            completedRoomIds={completedRoomIds}
+            onBackToRooms={() => setAppScreen('checklist_main')}
+            onRecordInspection={handleRecordInspection}
+            onCompleteRoom={handleCompleteRoom}
+            onNavigateToRoom={(nextRoom) => setActiveRoom(nextRoom)}
+            onCompleteAllChecklist={handleCompleteAllChecklist}
+          />
+        )}
         {toastNotification}
       </>
     );
