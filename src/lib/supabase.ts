@@ -96,11 +96,14 @@ export function getSupabaseClient(): SupabaseClient {
 
 export function getInventoryImageUrl(imagePath: string | null | undefined): string | null {
   if (!imagePath) return null;
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
+  const trimmed = String(imagePath).trim();
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return null;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:image/')) {
+    return trimmed;
   }
   if (!isSupabaseConfigured()) return null;
   const client = getSupabaseClient();
-  const { data } = client.storage.from(STORAGE_BUCKET).getPublicUrl(imagePath);
+  const cleanPath = trimmed.replace(/^\/+/, '');
+  const { data } = client.storage.from(STORAGE_BUCKET).getPublicUrl(cleanPath);
   return data?.publicUrl || null;
 }

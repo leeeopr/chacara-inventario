@@ -3,6 +3,7 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
+  Camera,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -153,6 +154,13 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmIncompleteOpen, setConfirmIncompleteOpen] = useState(false);
 
+  // Set of item IDs whose image failed to load (fallback to placeholder gracefully)
+  const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
+
+  // Lightbox fullscreen photo zoom state
+  const [photoZoomUrl, setPhotoZoomUrl] = useState<string | null>(null);
+  const [photoZoomName, setPhotoZoomName] = useState<string>('');
+
   // Tap gesture tracking: store timers per item ID
   const tapTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const lastTapRef = useRef<{ itemId: string; time: number } | null>(null);
@@ -169,6 +177,10 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
   // Android hardware back navigation
   useEffect(() => {
     const unregister = registerBackHandler('QuickRoomInspection', 50, () => {
+      if (photoZoomUrl) {
+        setPhotoZoomUrl(null);
+        return true;
+      }
       if (confirmIncompleteOpen) {
         setConfirmIncompleteOpen(false);
         return true;
@@ -195,6 +207,7 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
 
     return () => unregister();
   }, [
+    photoZoomUrl,
     confirmIncompleteOpen,
     isIssueModalOpen,
     isQuantityModalOpen,
@@ -503,7 +516,9 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
               const isIssue = isDamaged || isMissing;
               const isQuantity = item.inventory_type === 'quantity';
 
-              const imageUrl = getInventoryImageUrl(item.image_url);
+              const itemImagePath = item.image_path || (item as any).image_url;
+              const imageUrl = getInventoryImageUrl(itemImagePath);
+              const hasValidImage = Boolean(imageUrl && !failedImageIds.has(item.id));
 
               return (
                 <div
@@ -536,20 +551,36 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
 
                   {/* Thumbnail Image / Placeholder */}
                   <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800/80 mb-1.5 flex items-center justify-center">
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={item.name}
-                        loading="lazy"
-                        className="w-full h-full object-cover"
-                      />
+                    {hasValidImage ? (
+                      <>
+                        {/* Ambient backdrop blur for clean styling */}
+                        <img
+                          src={imageUrl!}
+                          alt=""
+                          aria-hidden="true"
+                          className="absolute inset-0 w-full h-full object-cover blur-md opacity-25 scale-110 pointer-events-none select-none"
+                        />
+                        {/* Primary Image with object-cover and lazy loading */}
+                        <img
+                          src={imageUrl!}
+                          alt={item.name}
+                          loading="lazy"
+                          decoding="async"
+                          onError={() => {
+                            setFailedImageIds((prev) => new Set(prev).add(item.id));
+                          }}
+                          className="w-full h-full object-cover relative z-10 pointer-events-none select-none"
+                        />
+                      </>
                     ) : (
-                      <Package className="w-6 h-6 text-slate-700" />
+                      <div className="flex flex-col items-center justify-center p-2 text-slate-600 pointer-events-none select-none">
+                        <Package className="w-7 h-7 text-slate-700" />
+                      </div>
                     )}
 
                     {/* Overlay Status Checkmark / Warning Badge */}
                     {isApproved && (
-                      <div className="absolute inset-0 bg-emerald-950/40 backdrop-blur-[1px] flex items-center justify-center">
+                      <div className="absolute inset-0 z-20 bg-emerald-950/40 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
                         <div className="w-8 h-8 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center shadow-lg animate-scaleIn">
                           <Check className="w-5 h-5 stroke-[3]" />
                         </div>
@@ -557,7 +588,7 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
                     )}
 
                     {isIssue && (
-                      <div className="absolute inset-0 bg-rose-950/50 backdrop-blur-[1px] flex items-center justify-center">
+                      <div className="absolute inset-0 z-20 bg-rose-950/50 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
                         <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg animate-scaleIn">
                           <AlertTriangle className="w-5 h-5" />
                         </div>
@@ -664,44 +695,78 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
             {/* Scrollable Content */}
             <div className="p-4 overflow-y-auto space-y-4">
               {/* Photo & Details Row */}
-              <div className="flex items-start gap-3 bg-slate-950/70 p-3 rounded-2xl border border-slate-800">
-                <div className="w-20 h-20 rounded-xl bg-slate-900 border border-slate-800 overflow-hidden shrink-0 flex items-center justify-center">
-                  {getInventoryImageUrl(selectedItemForDetails.image_url) ? (
-                    <img
-                      src={getInventoryImageUrl(selectedItemForDetails.image_url)!}
-                      alt={selectedItemForDetails.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Package className="w-8 h-8 text-slate-700" />
-                  )}
-                </div>
+              {(() => {
+                const detailImagePath = selectedItemForDetails.image_path || (selectedItemForDetails as any).image_url;
+                const detailImageUrl = getInventoryImageUrl(detailImagePath);
+                const hasDetailImage = Boolean(detailImageUrl && !failedImageIds.has(selectedItemForDetails.id));
 
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="text-xs font-bold text-slate-400">
-                    Código: <span className="text-white">#{selectedItemForDetails.identification_code || '---'}</span>
-                  </div>
-                  <div className="text-xs font-bold text-slate-400">
-                    Tipo de Cadastro:{' '}
-                    <span className="text-emerald-300">
-                      {selectedItemForDetails.inventory_type === 'quantity'
-                        ? `Quantidade (${selectedItemForDetails.expected_quantity} unidades)`
-                        : 'Item Individual'}
-                    </span>
-                  </div>
-                  {/* Inspection type badge */}
-                  {(() => {
-                    const cfg = getInspectionTypeConfig(selectedItemForDetails.inspection_type);
-                    return (
-                      <div className="pt-1">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                          {cfg.label}
+                return (
+                  <div className="flex items-start gap-3.5 bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800">
+                    <div
+                      className={`w-24 h-24 rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shrink-0 flex items-center justify-center relative ${
+                        hasDetailImage ? 'cursor-pointer hover:border-emerald-500/50 transition-colors group' : ''
+                      }`}
+                      onClick={() => {
+                        if (hasDetailImage && detailImageUrl) {
+                          setPhotoZoomUrl(detailImageUrl);
+                          setPhotoZoomName(selectedItemForDetails.name);
+                        }
+                      }}
+                      title={hasDetailImage ? 'Toque para ampliar a foto' : undefined}
+                    >
+                      {hasDetailImage && detailImageUrl ? (
+                        <>
+                          <img
+                            src={detailImageUrl}
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 w-full h-full object-cover blur-sm opacity-25 scale-110 pointer-events-none"
+                          />
+                          <img
+                            src={detailImageUrl}
+                            alt={selectedItemForDetails.name}
+                            onError={() => {
+                              setFailedImageIds((prev) => new Set(prev).add(selectedItemForDetails.id));
+                            }}
+                            className="w-full h-full object-cover relative z-10 pointer-events-none group-active:scale-105 transition-transform"
+                          />
+                          <div className="absolute bottom-1 right-1 z-20 px-1.5 py-0.5 rounded-md bg-black/70 text-[9px] font-bold text-white pointer-events-none flex items-center gap-0.5">
+                            <Eye className="w-2.5 h-2.5 text-emerald-400" />
+                            <span>Zoom</span>
+                          </div>
+                        </>
+                      ) : (
+                        <Package className="w-10 h-10 text-slate-700" />
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="text-xs font-bold text-slate-400">
+                        Código: <span className="text-white">#{selectedItemForDetails.identification_code || '---'}</span>
+                      </div>
+                      <div className="text-xs font-bold text-slate-400">
+                        Tipo de Cadastro:{' '}
+                        <span className="text-emerald-300">
+                          {selectedItemForDetails.inventory_type === 'quantity'
+                            ? `Quantidade (${selectedItemForDetails.expected_quantity} unidades)`
+                            : 'Item Individual'}
                         </span>
                       </div>
-                    );
-                  })()}
-                </div>
-              </div>
+                      {/* Inspection type badge */}
+                      {(() => {
+                        const cfg = getInspectionTypeConfig(selectedItemForDetails.inspection_type);
+                        return (
+                          <div className="pt-1">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                              {cfg.label}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Inspection Type Specific Questions */}
               {(() => {
@@ -915,6 +980,36 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
           }}
           onClose={() => setCelebrationState(null)}
         />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 10. FULLSCREEN PHOTO LIGHTBOX */}
+      {/* ========================================================================= */}
+      {photoZoomUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-3 sm:p-5 bg-black/95 backdrop-blur-md animate-fadeIn"
+          onClick={() => setPhotoZoomUrl(null)}
+        >
+          <div className="w-full max-w-lg flex items-center justify-between p-2 text-white">
+            <span className="text-sm font-bold truncate max-w-[280px]">
+              {photoZoomName}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPhotoZoomUrl(null)}
+              className="p-2 rounded-xl bg-slate-800 text-white hover:bg-slate-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center max-w-full p-2" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={photoZoomUrl}
+              alt={photoZoomName}
+              className="max-h-[80vh] max-w-full rounded-2xl object-contain shadow-2xl border border-slate-800"
+            />
+          </div>
+        </div>
       )}
     </div>
   );
