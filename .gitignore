@@ -43,3 +43,14 @@ android/.idea/
 android/local.properties
 android/*.iml
 android/app/*.iml
+
+# Baileys WhatsApp Updater
+wa-updater/node_modules/
+wa-updater/auth_info/
+wa-updater/temp/
+wa-updater/.env
+
+# Supabase CLI local cache
+supabase/.temp/
+
+

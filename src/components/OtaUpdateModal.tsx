@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
+  Check,
   CheckCircle2,
   Download,
   FileCode2,
   HardDriveDownload,
   Loader2,
+  MessageCircle,
   RefreshCw,
   Settings,
   Sparkles,
@@ -43,6 +45,11 @@ export const OtaUpdateModal: React.FC<OtaUpdateModalProps> = ({
   });
   const [downloadedFilePath, setDownloadedFilePath] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // WhatsApp fallback dispatch states
+  const [isSendingWa, setIsSendingWa] = useState(false);
+  const [waStatus, setWaStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [waMessage, setWaMessage] = useState<string | null>(null);
 
   if (!isOpen || !updateInfo) return null;
 
@@ -119,6 +126,48 @@ export const OtaUpdateModal: React.FC<OtaUpdateModalProps> = ({
       await proceedToInstall(downloadedFilePath);
     } else {
       handleStartUpdate();
+    }
+  };
+
+  const handleSendApkViaWhatsApp = async () => {
+    setIsSendingWa(true);
+    setWaStatus('sending');
+    setWaMessage(null);
+
+    const targetPhone = '5511968326792';
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch('http://localhost:3080/send-apk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: targetPhone }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      const result = await response.json();
+      if (result.success) {
+        setWaStatus('success');
+        setWaMessage(
+          'APK enviado com sucesso para o seu WhatsApp (11 96832-6792)! Verifique suas mensagens para instalar.'
+        );
+      } else {
+        throw new Error(result.error || 'Servidor WhatsApp retornou erro.');
+      }
+    } catch (err: any) {
+      console.warn('Serviço Baileys local indisponível, usando fallback:', err);
+      setWaStatus('error');
+      setWaMessage(
+        'Servidor local Baileys não conectado. Abrindo seu WhatsApp com o comando "apk"...'
+      );
+      // Fallback nativo: abrir WhatsApp com o comando "apk"
+      const waUrl = `https://wa.me/${targetPhone}?text=apk`;
+      window.open(waUrl, '_system');
+    } finally {
+      setIsSendingWa(false);
     }
   };
 
@@ -291,43 +340,113 @@ export const OtaUpdateModal: React.FC<OtaUpdateModalProps> = ({
         )}
 
         {downloadState === 'error' && (
-          <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-2 animate-fadeIn">
+          <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-3 animate-fadeIn">
             <div className="flex items-center gap-2 text-rose-400 font-black text-sm">
               <AlertTriangle className="w-4 h-4" />
-              <span>Não foi possível atualizar</span>
+              <span>Não foi possível atualizar automaticamente</span>
             </div>
             <p className="text-xs text-rose-200">{errorMessage}</p>
-            <button
-              type="button"
-              onClick={handleStartUpdate}
-              className="mt-2 py-2 px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-xs flex items-center gap-1.5"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Tentar Novamente</span>
-            </button>
+
+            {waMessage && (
+              <div
+                className={`p-3 rounded-xl text-xs font-semibold flex items-start gap-2 ${
+                  waStatus === 'success'
+                    ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
+                    : 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
+                }`}
+              >
+                {waStatus === 'success' ? (
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                ) : (
+                  <MessageCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                )}
+                <span>{waMessage}</span>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleStartUpdate}
+                className="py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Tentar Novamente</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSendApkViaWhatsApp}
+                disabled={isSendingWa}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+              >
+                {isSendingWa ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Enviando no WhatsApp...</span>
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="w-4 h-4 fill-slate-950" />
+                    <span>Receber APK no WhatsApp</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
         {/* Action Buttons (when idle) */}
         {downloadState === 'idle' && (
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="order-2 sm:order-1 py-3.5 px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-extrabold text-sm transition-colors text-center"
-            >
-              Mais Tarde
-            </button>
+          <div className="space-y-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="order-2 sm:order-1 py-3.5 px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-extrabold text-sm transition-colors text-center"
+              >
+                Mais Tarde
+              </button>
 
-            <button
-              type="button"
-              onClick={handleStartUpdate}
-              disabled={!updateInfo.apkUrl}
-              className="order-1 sm:order-2 flex-1 py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-black text-base flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <HardDriveDownload className="w-5 h-5 stroke-[2.5]" />
-              <span>Atualizar Agora</span>
-            </button>
+              <button
+                type="button"
+                onClick={handleStartUpdate}
+                disabled={!updateInfo.apkUrl}
+                className="order-1 sm:order-2 flex-1 py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-black text-base flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <HardDriveDownload className="w-5 h-5 stroke-[2.5]" />
+                <span>Atualizar Agora</span>
+              </button>
+            </div>
+
+            {waMessage && (
+              <div
+                className={`p-3 rounded-xl text-xs font-semibold flex items-start gap-2 ${
+                  waStatus === 'success'
+                    ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
+                    : 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
+                }`}
+              >
+                {waStatus === 'success' ? (
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                ) : (
+                  <MessageCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                )}
+                <span>{waMessage}</span>
+              </div>
+            )}
+
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                onClick={handleSendApkViaWhatsApp}
+                disabled={isSendingWa}
+                className="text-xs text-slate-400 hover:text-emerald-400 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Ou receber arquivo APK no WhatsApp (11 96832-6792)</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
