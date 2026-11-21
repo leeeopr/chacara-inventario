@@ -408,7 +408,7 @@ export const QuickRoomInspection: React.FC<QuickRoomInspectionProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col select-none pb-28">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col select-none pb-28 max-w-full overflow-x-hidden">
       {/* 1. TOP HEADER */}
       <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800 px-3 sm:px-4 py-2.5 shadow-md">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">

@@ -64,7 +64,7 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
   const allCompleted = rooms.length > 0 && completedRoomsCount === rooms.length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col select-none">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col select-none max-w-full overflow-x-hidden">
       {/* Top Header - Extremely simple: Title + Discreet Accessibility & Hamburger Menu */}
       <header className="sticky top-0 z-30 bg-slate-950/95 border-b-2 border-slate-800/80 px-4 sm:px-6 py-4 backdrop-blur-md">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">

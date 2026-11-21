@@ -23,6 +23,7 @@ import {
   Layers,
   List,
   Loader2,
+  Menu,
   Package,
   Plus,
   RefreshCw,
@@ -773,93 +774,28 @@ export function App() {
           loadAllData();
         }}
       >
-        <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 pb-24 sm:pb-12">
-        {/* Admin Navigation Bar */}
-        <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 pb-24 sm:pb-12 max-w-full overflow-x-hidden">
+        {/* Admin Navigation Bar - Strictly Responsive & Mobile-Proportional */}
+        <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800 max-w-full overflow-x-hidden">
+          {/* Main Top Bar */}
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => setAppScreen('checklist_main')}
-              className="px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 font-extrabold text-xs sm:text-sm flex items-center gap-2 transition-all shadow"
+              className="px-3 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 font-extrabold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow shrink-0"
+              title="Retornar à tela de conferência"
             >
               <ArrowLeft className="w-4 h-4 stroke-[3]" />
-              <span>Voltar à Conferência</span>
+              <span className="hidden xs:inline">Voltar à Conferência</span>
+              <span className="xs:hidden">Voltar</span>
             </button>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsFloorPlanModalOpen(true)}
-                className="px-3 py-2 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/40 text-xs font-bold text-teal-300 flex items-center gap-1.5 transition-all shadow-sm"
-                title="Abrir Planta da Chácara"
-              >
-                <Compass className="w-4 h-4 text-teal-400" />
-                <span className="hidden sm:inline">Planta da Chácara</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsRoomsModalOpen(true)}
-                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5"
-              >
-                <Home className="w-4 h-4 text-emerald-400" />
-                <span className="hidden sm:inline">Cômodos ({rooms.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsRoomCategoriesModalOpen(true)}
-                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5"
-                title="Categorias de Cômodos"
-              >
-                <FolderTree className="w-4 h-4 text-purple-400" />
-                <span className="hidden md:inline">Cat. Cômodos</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsRoomOrderModalOpen(true)}
-                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5"
-                title="Configurar Ordem dos Cômodos na Conferência"
-              >
-                <ArrowUpDown className="w-4 h-4 text-emerald-400" />
-                <span className="hidden sm:inline">Ordem</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsCategoriesModalOpen(true)}
-                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5"
-              >
-                <Tag className="w-4 h-4 text-sky-400" />
-                <span className="hidden sm:inline">Categorias ({categories.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsOtaSettingsModalOpen(true)}
-                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5"
-                title="Atualizações do Aplicativo (OTA)"
-              >
-                <Sparkles className="w-4 h-4 text-teal-400" />
-                <span className="hidden lg:inline">Atualizações</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsVisualScaleModalOpen(true)}
-                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5 transition-all"
-                title="Ajustar tamanho da interface (Acessibilidade visual)"
-                aria-label="Ajustar tamanho da interface"
-              >
-                <Sliders className="w-4 h-4 text-emerald-400" />
-                <span className="hidden sm:inline">Acessibilidade</span>
-              </button>
-
+            {/* Primary Action Buttons (Always fitting on mobile screens) */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setIsBulkPhotoUploadOpen(true)}
-                className="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                className="px-2.5 sm:px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0"
                 title="Cadastrar múltiplos itens através de fotos em lote"
               >
                 <Camera className="w-4 h-4 text-amber-400" />
@@ -873,12 +809,96 @@ export function App() {
                   setEditingItem(null);
                   setIsItemFormOpen(true);
                 }}
-                className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
+                className="px-3 sm:px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 shrink-0"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
-                <span>Novo Item</span>
+                <span className="hidden sm:inline">Novo Item</span>
+                <span className="sm:hidden">Novo</span>
+              </button>
+
+              {/* Drawer Menu Button for quick access to all administrative features */}
+              <button
+                type="button"
+                onClick={() => setIsAdminDrawerOpen(true)}
+                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-all shadow shrink-0"
+                title="Abrir menu administrativo completo"
+                aria-label="Menu administrativo"
+              >
+                <Menu className="w-4 h-4" />
               </button>
             </div>
+          </div>
+
+          {/* Secondary Scrollable Management Strip (Safely contained horizontally without breaking page width) */}
+          <div className="border-t border-slate-850/80 bg-slate-950/70 px-3 sm:px-4 py-1.5 overflow-x-auto scrollbar-none flex items-center gap-1.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setIsFloorPlanModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/30 font-bold text-teal-300 flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+              title="Abrir Planta da Chácara"
+            >
+              <Compass className="w-3.5 h-3.5 text-teal-400" />
+              <span>Planta da Chácara</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsRoomsModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 font-bold text-slate-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+            >
+              <Home className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Cômodos ({rooms.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsRoomCategoriesModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 font-bold text-slate-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+              title="Categorias de Cômodos"
+            >
+              <FolderTree className="w-3.5 h-3.5 text-purple-400" />
+              <span>Cat. Cômodos</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsRoomOrderModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 font-bold text-slate-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+              title="Configurar Ordem dos Cômodos na Conferência"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Ordem</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsCategoriesModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 font-bold text-slate-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+            >
+              <Tag className="w-3.5 h-3.5 text-sky-400" />
+              <span>Categorias ({categories.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsOtaSettingsModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 font-bold text-slate-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+              title="Atualizações do Aplicativo (OTA)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+              <span>Atualizações</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsVisualScaleModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 font-bold text-slate-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+              title="Ajustar tamanho da interface (Acessibilidade visual)"
+              aria-label="Ajustar tamanho da interface"
+            >
+              <Sliders className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Acessibilidade</span>
+            </button>
           </div>
         </header>
 
@@ -988,24 +1008,24 @@ export function App() {
           </div>
 
           {/* Search, Filter & View Controls */}
-          <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800/90 space-y-3">
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-              <div className="relative flex-1">
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/90 border border-slate-800/90 space-y-3 min-w-0">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 min-w-0">
+              <div className="relative flex-1 min-w-0">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={filters.search}
                   onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
                   placeholder="Buscar item por nome, código (ex: TG01, TM02), cômodo ou descrição..."
-                  className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:outline-none text-sm text-white placeholder-slate-500"
+                  className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:outline-none text-xs sm:text-sm text-white placeholder-slate-500"
                 />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 min-w-0">
                 <select
                   value={filters.roomId}
                   onChange={(e) => setFilters((f) => ({ ...f, roomId: e.target.value }))}
-                  className="px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200"
+                  className="w-full min-w-0 truncate px-2.5 sm:px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200"
                 >
                   <option value="all">Cômodo: Todos</option>
                   {rooms.map((r) => (
@@ -1018,7 +1038,7 @@ export function App() {
                 <select
                   value={filters.categoryId}
                   onChange={(e) => setFilters((f) => ({ ...f, categoryId: e.target.value }))}
-                  className="px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200"
+                  className="w-full min-w-0 truncate px-2.5 sm:px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200"
                 >
                   <option value="all">Categoria: Todas</option>
                   <option value="uncategorized">Sem categoria</option>
@@ -1037,7 +1057,7 @@ export function App() {
                       inventoryType: e.target.value as InventoryFilters['inventoryType'],
                     }))
                   }
-                  className="px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200"
+                  className="w-full min-w-0 truncate px-2.5 sm:px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200"
                 >
                   <option value="all">Tipo: Todos</option>
                   <option value="individual">Individuais</option>
@@ -1052,7 +1072,7 @@ export function App() {
                       status: e.target.value as InventoryFilters['status'],
                     }))
                   }
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-semibold ${
+                  className={`w-full min-w-0 truncate px-2.5 sm:px-3 py-2.5 rounded-xl border text-xs font-semibold ${
                     filters.status === 'pending_information'
                       ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold'
                       : 'bg-slate-950 border-slate-800 text-slate-200'
@@ -1075,7 +1095,7 @@ export function App() {
                       sortBy: e.target.value as InventoryFilters['sortBy'],
                     }))
                   }
-                  className="px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200"
+                  className="w-full min-w-0 truncate px-2.5 sm:px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200"
                 >
                   <option value="newest">Mais recentes</option>
                   <option value="name_asc">Nome (A-Z)</option>
@@ -1185,8 +1205,8 @@ export function App() {
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl bg-slate-900/90 border border-slate-800 overflow-hidden shadow-xl">
-              <table className="w-full text-left border-collapse">
+            <div className="rounded-2xl bg-slate-900/90 border border-slate-800 overflow-x-auto shadow-xl scrollbar-none">
+              <table className="w-full min-w-[600px] text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-950/70 text-[11px] font-extrabold uppercase text-slate-400">
                     <th className="py-3 px-4">Item</th>

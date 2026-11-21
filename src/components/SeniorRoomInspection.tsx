@@ -402,7 +402,7 @@ export const SeniorRoomInspection: React.FC<SeniorRoomInspectionProps> = ({
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between select-none pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between select-none pb-[max(1rem,env(safe-area-inset-bottom))] max-w-full overflow-x-hidden">
       {/* Top Header - High contrast room title & progress */}
       <header className="sticky top-0 z-30 bg-slate-900/95 border-b-2 border-slate-800 p-2.5 sm:p-3 backdrop-blur-md">
         <div className="max-w-xl mx-auto flex items-center justify-between gap-2">
