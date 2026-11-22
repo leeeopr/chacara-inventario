@@ -35,6 +35,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { BatchAiClassificationModal } from './components/BatchAiClassificationModal';
 import { BulkPhotoUploadModal } from './components/BulkPhotoUploadModal';
 import { CategoryManagementModal } from './components/CategoryManagementModal';
 import { ChecklistHistoryModal } from './components/ChecklistHistoryModal';
@@ -84,6 +85,7 @@ import {
   getItemsForRoom,
   seedSuggestedCategories,
   seedSuggestedRooms,
+  updateInventoryItem,
 } from './services/inventoryService';
 import {
   ChecklistItemResult,
@@ -134,6 +136,10 @@ export function App() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
   const [isBulkPhotoUploadOpen, setIsBulkPhotoUploadOpen] = useState(false);
+  const [isBatchAiModalOpen, setIsBatchAiModalOpen] = useState(false);
+  const [itemsToClassifyWithAi, setItemsToClassifyWithAi] = useState<InventoryItem[]>([]);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [selectedDetailItem, setSelectedDetailItem] = useState<InventoryItem | null>(null);
   const [deletingItem, setDeletingItem] = useState<InventoryItem | null>(null);
@@ -689,6 +695,72 @@ export function App() {
     }
   };
 
+  // AI Classification Selection & Handlers
+  const handleToggleSelectItem = (id: string) => {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAllFiltered = () => {
+    const allFilteredIds = filteredItems.map((it) => it.id);
+    if (selectedItemIds.size === allFilteredIds.length) {
+      setSelectedItemIds(new Set());
+    } else {
+      setSelectedItemIds(new Set(allFilteredIds));
+    }
+  };
+
+  const handleOpenAiClassification = (customItems?: InventoryItem[]) => {
+    let target: InventoryItem[] = [];
+    if (customItems && customItems.length > 0) {
+      target = customItems;
+    } else if (selectedItemIds.size > 0) {
+      target = items.filter((it) => selectedItemIds.has(it.id));
+    } else if (filters.status === 'pending_information') {
+      target = filteredItems;
+    } else {
+      target = filteredItems;
+    }
+
+    if (target.length === 0) {
+      alert('Nenhum item selecionado para classificação.');
+      return;
+    }
+    setItemsToClassifyWithAi(target);
+    setIsBatchAiModalOpen(true);
+  };
+
+  const handleSaveBatchAiUpdates = async (
+    updates: Array<{
+      id: string;
+      name: string;
+      category_id: string | null;
+      room_id: string | null;
+      description: string | null;
+      status: 'completed' | 'pending_information';
+    }>
+  ) => {
+    await Promise.all(
+      updates.map((u) =>
+        updateInventoryItem(u.id, {
+          name: u.name,
+          category_id: u.category_id,
+          room_id: u.room_id,
+          description: u.description,
+          status: u.status,
+        })
+      )
+    );
+    await loadAllData();
+    setSelectedItemIds(new Set());
+    setIsSelectionMode(false);
+    showToast(`✨ ${updates.length} itens foram atualizados com sucesso pela IA!`);
+  };
+
   // Toast feedback
   const toastNotification = toastMsg && (
     <div className="fixed bottom-6 right-4 z-50 max-w-sm rounded-2xl bg-emerald-500 text-slate-950 px-4 py-3 shadow-2xl flex items-center gap-2.5 font-black text-sm">
@@ -1156,20 +1228,53 @@ export function App() {
           )}
 
           {filters.status === 'pending_information' && (
-            <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2.5 text-amber-300">
-                <Clock className="w-4 h-4 shrink-0 text-amber-400" />
-                <span>
-                  Exibindo apenas <strong>Itens Pendentes de Informações</strong> ({filteredItems.length}). Toque em <strong>Completar cadastro</strong> para preencher cômodo e informações do item.
-                </span>
+                <Clock className="w-5 h-5 shrink-0 text-amber-400" />
+                <div>
+                  <p className="font-bold text-white text-sm">
+                    Itens Pendentes de Informações ({filteredItems.length})
+                  </p>
+                  <p className="text-amber-200/80 text-[11px] mt-0.5">
+                    Fotos do lote prontas para identificação. Você pode selecionar itens ou classificar todos de uma vez com IA.
+                  </p>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setFilters((f) => ({ ...f, status: 'all' }))}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs shrink-0 transition-colors cursor-pointer"
-              >
-                Mostrar todos os itens
-              </button>
+
+              <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={() => handleOpenAiClassification(filteredItems)}
+                  className="flex-1 md:flex-initial px-4 py-2 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-purple-500/25 transition-all cursor-pointer"
+                  title="Analisar todos os itens pendentes com a Inteligência Artificial Gemini"
+                >
+                  <Sparkles className="w-4 h-4 fill-slate-950" />
+                  <span>Classificar com IA ({filteredItems.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSelectionMode((v) => !v);
+                    setSelectedItemIds(new Set());
+                  }}
+                  className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    isSelectionMode
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                  }`}
+                >
+                  <span>{isSelectionMode ? 'Encerrar Seleção' : 'Selecionar Vários'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFilters((f) => ({ ...f, status: 'all' }))}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs shrink-0 transition-colors cursor-pointer"
+                >
+                  Ver Todos
+                </button>
+              </div>
             </div>
           )}
 
@@ -1195,6 +1300,9 @@ export function App() {
                 <InventoryItemCard
                   key={item.id}
                   item={item}
+                  isSelectionMode={isSelectionMode}
+                  isSelected={selectedItemIds.has(item.id)}
+                  onToggleSelect={(it) => handleToggleSelectItem(it.id)}
                   onSelect={(it) => setSelectedDetailItem(it)}
                   onEdit={(it) => {
                     setEditingItem(it);
@@ -1209,6 +1317,19 @@ export function App() {
               <table className="w-full min-w-[600px] text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-950/70 text-[11px] font-extrabold uppercase text-slate-400">
+                    {isSelectionMode && (
+                      <th className="py-3 px-3 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={
+                            filteredItems.length > 0 &&
+                            selectedItemIds.size === filteredItems.length
+                          }
+                          onChange={handleSelectAllFiltered}
+                          className="w-4 h-4 rounded text-purple-500 bg-slate-900 border-slate-700 cursor-pointer"
+                        />
+                      </th>
+                    )}
                     <th className="py-3 px-4">Item</th>
                     <th className="py-3 px-4">Código</th>
                     <th className="py-3 px-4">Cômodo</th>
@@ -1221,9 +1342,32 @@ export function App() {
                   {filteredItems.map((item) => (
                     <tr
                       key={item.id}
-                      onClick={() => setSelectedDetailItem(item)}
-                      className="hover:bg-slate-800/40 cursor-pointer"
+                      onClick={() => {
+                        if (isSelectionMode) {
+                          handleToggleSelectItem(item.id);
+                        } else {
+                          setSelectedDetailItem(item);
+                        }
+                      }}
+                      className={`hover:bg-slate-800/40 cursor-pointer transition-colors ${
+                        isSelectionMode && selectedItemIds.has(item.id)
+                          ? 'bg-purple-950/25'
+                          : ''
+                      }`}
                     >
+                      {isSelectionMode && (
+                        <td
+                          className="py-3 px-3 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedItemIds.has(item.id)}
+                            onChange={() => handleToggleSelectItem(item.id)}
+                            className="w-4 h-4 rounded text-purple-500 bg-slate-900 border-slate-700 cursor-pointer"
+                          />
+                        </td>
+                      )}
                       <td className="py-3 px-4 font-bold text-white">
                         <div className="flex items-center gap-2">
                           <span className={item.status === 'pending_information' ? 'text-amber-300' : ''}>
@@ -1440,7 +1584,72 @@ export function App() {
             setFilters((f) => ({ ...f, status: 'pending_information' }));
             showToast('Exibindo itens pendentes de informações.');
           }}
+          onClassifyWithAi={async (createdItemIds) => {
+            const reloaded = await fetchInventoryItems().catch(() => []);
+            setItems(reloaded);
+            const targets = reloaded.filter((it) => createdItemIds.includes(it.id));
+            if (targets.length > 0) {
+              handleOpenAiClassification(targets);
+            } else {
+              setFilters((f) => ({ ...f, status: 'pending_information' }));
+            }
+          }}
         />
+
+        {/* Batch AI Vision Classification Modal */}
+        <BatchAiClassificationModal
+          isOpen={isBatchAiModalOpen}
+          onClose={() => setIsBatchAiModalOpen(false)}
+          items={itemsToClassifyWithAi}
+          categories={categories}
+          rooms={rooms}
+          onSaveBatch={handleSaveBatchAiUpdates}
+        />
+
+        {/* Floating Multi-Selection Action Bar */}
+        {isSelectionMode && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[95%] bg-slate-900/95 border border-purple-500/50 backdrop-blur-md p-3.5 rounded-2xl shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-bottom-3">
+            <div className="flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-purple-500/20 text-purple-300 font-extrabold text-xs flex items-center justify-center border border-purple-500/30">
+                {selectedItemIds.size}
+              </span>
+              <span className="text-xs font-bold text-white hidden xs:inline">
+                {selectedItemIds.size === 1 ? 'item selecionado' : 'itens selecionados'}
+              </span>
+              <button
+                type="button"
+                onClick={handleSelectAllFiltered}
+                className="text-xs text-purple-300 hover:text-white underline font-bold ml-1 cursor-pointer"
+              >
+                {selectedItemIds.size === filteredItems.length ? 'Desmarcar' : 'Todos'}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={selectedItemIds.size === 0}
+                onClick={() => handleOpenAiClassification()}
+                className="py-2 px-3.5 rounded-xl bg-purple-500 hover:bg-purple-400 disabled:opacity-40 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 fill-slate-950" />
+                <span>Classificar com IA ({selectedItemIds.size})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSelectionMode(false);
+                  setSelectedItemIds(new Set());
+                }}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                title="Sair do modo seleção"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {toastNotification}
       </div>

@@ -50,6 +50,7 @@ import {
   InspectionType,
 } from '../lib/inspectionTypeUtils';
 import { getInventoryImageUrl } from '../lib/supabase';
+import { classifyInventoryItemWithAi } from '../services/aiVisionService';
 import {
   createCategory,
   createInventoryItem,
@@ -131,6 +132,8 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
   const [compressedImage, setCompressedImage] = useState<CompressedImageResult | null>(null);
   const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
   const [isLiveCameraOpen, setIsLiveCameraOpen] = useState(false);
+  const [isAnalyzingAi, setIsAnalyzingAi] = useState(false);
+  const [aiSuccessMsg, setAiSuccessMsg] = useState<string | null>(null);
 
   // Step 3: Information states
   const [name, setName] = useState('');
@@ -470,6 +473,61 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
     }
     setCompressedImage(null);
     setExistingImagePath(null);
+    setAiSuccessMsg(null);
+  };
+
+  const handleRunAiSingleItem = async () => {
+    if (!compressedImage && !existingImagePath) return;
+    setIsAnalyzingAi(true);
+    setErrorMsg(null);
+    setAiSuccessMsg(null);
+
+    try {
+      const dummyItem: InventoryItem = editingItem || {
+        id: 'temp',
+        name: name || 'Item',
+        identification_code: identificationCode || null,
+        category_id: categoryId || null,
+        room_id: roomId || null,
+        description: description || null,
+        expected_quantity: expectedQuantity,
+        inventory_type: inventoryType,
+        inspection_type: inspectionType,
+        image_path: existingImagePath,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const result = await classifyInventoryItemWithAi({
+        item: dummyItem,
+        categories,
+        rooms,
+        customImageFile: compressedImage?.blob,
+      });
+
+      if (result.suggestedName) {
+        setName(result.suggestedName);
+      }
+      if (result.matchedCategoryId) {
+        setCategoryId(result.matchedCategoryId);
+      }
+      if (result.matchedRoomId && (!roomId || roomId === 'all')) {
+        setRoomId(result.matchedRoomId);
+      }
+      if (result.description) {
+        setDescription(result.description);
+      }
+      if (result.estimatedQuantity && result.estimatedQuantity > 1) {
+        setExpectedQuantity(result.estimatedQuantity);
+      }
+
+      setAiSuccessMsg(`IA identificou: "${result.suggestedName}" (${result.suggestedCategoryName})`);
+    } catch (err: any) {
+      console.error('Falha ao analisar item com IA:', err);
+      setErrorMsg(`Erro na análise com IA: ${err.message || 'Verifique a chave da API'}`);
+    } finally {
+      setIsAnalyzingAi(false);
+    }
   };
 
   // Quick Room & Category creation
@@ -1525,8 +1583,35 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
                     </div>
                   )}
 
+                  {aiSuccessMsg && (
+                    <div className="p-3 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-200 text-xs font-bold flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+                      <span>{aiSuccessMsg}</span>
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                     <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleRunAiSingleItem}
+                        disabled={isAnalyzingAi}
+                        className="px-3.5 py-2 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 text-xs font-black flex items-center gap-1.5 transition-all shadow-md shadow-purple-500/20 disabled:opacity-50 cursor-pointer"
+                        title="Usar inteligência artificial para reconhecer o objeto, sugerir nome e categoria"
+                      >
+                        {isAnalyzingAi ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Identificando com IA...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5 fill-slate-950" />
+                            <span>Identificar com IA</span>
+                          </>
+                        )}
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => cameraInputRef.current?.click()}

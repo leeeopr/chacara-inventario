@@ -3,6 +3,7 @@ import {
   AlertCircle,
   AlertTriangle,
   Camera,
+  Check,
   Edit3,
   Eye,
   Hash,
@@ -22,6 +23,9 @@ interface InventoryItemCardProps {
   onSelect: (item: InventoryItem) => void;
   onEdit: (item: InventoryItem) => void;
   onDelete: (item: InventoryItem) => void;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (item: InventoryItem) => void;
 }
 
 export const InventoryItemCard: React.FC<InventoryItemCardProps> = ({
@@ -29,6 +33,9 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = ({
   onSelect,
   onEdit,
   onDelete,
+  isSelectionMode = false,
+  isSelected = false,
+  onToggleSelect,
 }) => {
   const [imgError, setImgError] = useState(false);
   const imageUrl = getInventoryImageUrl(item.image_path);
@@ -50,8 +57,18 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = ({
 
   return (
     <div
-      onClick={() => onSelect(item)}
-      className="group relative rounded-2xl bg-slate-900/90 border border-slate-800/90 hover:border-emerald-500/50 transition-all duration-200 overflow-hidden flex flex-col cursor-pointer shadow-lg hover:shadow-emerald-950/30"
+      onClick={() => {
+        if (isSelectionMode) {
+          onToggleSelect?.(item);
+        } else {
+          onSelect(item);
+        }
+      }}
+      className={`group relative rounded-2xl bg-slate-900/90 border transition-all duration-200 overflow-hidden flex flex-col cursor-pointer shadow-lg ${
+        isSelectionMode && isSelected
+          ? 'border-purple-500 ring-2 ring-purple-500/40 shadow-purple-500/10'
+          : 'border-slate-800/90 hover:border-emerald-500/50 hover:shadow-emerald-950/30'
+      }`}
     >
       {/* Photograph Area */}
       <div className="relative aspect-[16/10] w-full bg-slate-950 overflow-hidden">
@@ -69,6 +86,19 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = ({
             <span className="text-[11px] font-medium uppercase tracking-wider opacity-60">
               Sem fotografia
             </span>
+          </div>
+        )}
+
+        {/* Selection Checkbox */}
+        {isSelectionMode && (
+          <div
+            className={`absolute top-2.5 right-2.5 z-20 w-7 h-7 rounded-xl flex items-center justify-center transition-all ${
+              isSelected
+                ? 'bg-purple-500 text-white shadow-lg ring-2 ring-white/50'
+                : 'bg-slate-950/80 border border-slate-700 text-transparent hover:border-purple-400'
+            }`}
+          >
+            <Check className="w-4 h-4 stroke-[3]" />
           </div>
         )}
 

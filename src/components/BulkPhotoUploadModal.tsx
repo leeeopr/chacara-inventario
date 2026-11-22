@@ -10,6 +10,7 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  Sparkles,
   Trash2,
   Upload,
   X,
@@ -33,6 +34,7 @@ interface BulkPhotoUploadModalProps {
   onClose: () => void;
   onSuccess: (createdCount: number) => void;
   onGoToPendingItems: () => void;
+  onClassifyWithAi?: (createdItemIds: string[]) => void;
 }
 
 export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
@@ -40,6 +42,7 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
   onClose,
   onSuccess,
   onGoToPendingItems,
+  onClassifyWithAi,
 }) => {
   const [items, setItems] = useState<BatchPhotoItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -501,9 +504,9 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors"
+                  className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors"
                 >
-                  Concluir e Fechar
+                  Fechar
                 </button>
                 <button
                   type="button"
@@ -511,10 +514,25 @@ export const BulkPhotoUploadModal: React.FC<BulkPhotoUploadModalProps> = ({
                     handleClearAll();
                     onGoToPendingItems();
                   }}
-                  className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/25 transition-all"
+                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
                 >
-                  <Clock className="w-4 h-4 stroke-[2.5]" />
-                  <span>Ir para Itens Pendentes</span>
+                  <Clock className="w-4 h-4" />
+                  <span>Ver Pendentes</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ids = items
+                      .map((it) => it.createdItemId)
+                      .filter(Boolean) as string[];
+                    handleClearAll();
+                    onClose();
+                    onClassifyWithAi?.(ids);
+                  }}
+                  className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-purple-500/25 transition-all"
+                >
+                  <Sparkles className="w-4 h-4 fill-slate-950" />
+                  <span>Classificar com IA Agora</span>
                 </button>
               </>
             ) : hasErrors && !isProcessing ? (
