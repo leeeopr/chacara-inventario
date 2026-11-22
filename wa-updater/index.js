@@ -65,7 +65,7 @@ async function resolveApkFile() {
   const localApkPath = path.resolve(__dirname, '../Chacara-Inventario.apk');
   const packageJsonPath = path.resolve(__dirname, '../package.json');
   
-  let currentVersion = '1.0.20';
+  let currentVersion = '1.0.21';
   try {
     if (fs.existsSync(packageJsonPath)) {
       const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));

@@ -78,7 +78,7 @@ jobs:
             TAG="${GITHUB_REF_NAME}"
           fi
           if [ "$TAG" = "main" ] || [ -z "$TAG" ]; then
-            TAG="v1.0.20"
+            TAG="v$(node -p "require('./package.json').version")"
           fi
           echo "Target Release Tag: $TAG"
           if gh release view "$TAG" >/dev/null 2>&1; then
