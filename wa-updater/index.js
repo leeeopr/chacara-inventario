@@ -65,7 +65,7 @@ async function resolveApkFile() {
   const localApkPath = path.resolve(__dirname, '../Chacara-Inventario.apk');
   const packageJsonPath = path.resolve(__dirname, '../package.json');
   
-  let currentVersion = '1.0.22';
+  let currentVersion = '1.0.23';
   try {
     if (fs.existsSync(packageJsonPath)) {
       const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
@@ -180,12 +180,18 @@ async function sendApk(targetPhone = DEFAULT_PHONE) {
 
   // 3. Enviar APK como documento executável do Android
   const caption = 
-    `📲 *Chácara Inventário — Atualização v${apkInfo.version}*\n\n` +
+    `📲 *Chácara Inventário — Versão v${apkInfo.version}*\n\n` +
+    `✨ *Novidade: Inteligência Artificial (Gemini Vision)*\n` +
+    `• Reconhecimento automático de objetos por foto\n` +
+    `• Sugestão inteligente de nome comercial e categoria\n` +
+    `• Classificação em lote na inserção de fotos pendentes\n` +
+    `• Botão "Identificar com IA" no cadastro individual\n\n` +
     `📦 Arquivo: \`${apkInfo.fileName}\` (${sizeMb} MB)\n\n` +
-    `👇 *Instruções de instalação:*\n` +
-    `1. Toque no arquivo acima para baixar.\n` +
-    `2. Toque nele para abrir e selecione *Instalar / Atualizar*.\n` +
-    `3. Se o Android pedir, marque *"Permitir desta fonte"*.\n\n` +
+    `⚠️ *PASSO OBRIGATÓRIO NESTA ATUALIZAÇÃO:*\n` +
+    `Como configuramos uma chave de segurança permanente definitiva:\n` +
+    `1. *Desinstale* o aplicativo "Chácara Inventário" atual do celular (fique tranquilo: todos os itens e fotos estão salvos na nuvem no Supabase!).\n` +
+    `2. Baixe o arquivo APK acima e toque nele para *Instalar*.\n` +
+    `3. A partir desta versão, todas as próximas atualizações atualizarão direto sem precisar desinstalar nunca mais! 🎉\n\n` +
     `_Enviado automaticamente pelo Baileys Updater._`;
 
   await sock.sendMessage(jid, {

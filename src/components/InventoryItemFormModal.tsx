@@ -297,12 +297,12 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
 
     if (editingItem) {
       setCurrentStep(1);
-      const isPending = editingItem.status === 'pending_information';
       const isPlaceholderName =
-        isPending &&
-        (!editingItem.name ||
-          editingItem.name.startsWith('Item pendente') ||
-          editingItem.name === 'Foto pendente');
+        !editingItem.name ||
+        editingItem.name.trim() === '' ||
+        editingItem.name.toLowerCase().startsWith('item pendente') ||
+        editingItem.name.toLowerCase().startsWith('foto pendente');
+      const isPending = editingItem.status === 'pending_information' || isPlaceholderName;
 
       setName(isPlaceholderName ? '' : editingItem.name);
       setCategoryId(editingItem.category_id || '');
@@ -840,6 +840,10 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
 
       if (isEditing && editingItem) {
         const prevImage = editingItem.image_path;
+        const isCleanNamePlaceholder =
+          !cleanName ||
+          cleanName.toLowerCase().startsWith('item pendente') ||
+          cleanName.toLowerCase().startsWith('foto pendente');
         const updated = await updateInventoryItem(editingItem.id, {
           name: cleanName,
           room_id: targetRoomId,
@@ -847,7 +851,7 @@ export const InventoryItemFormModal: React.FC<InventoryItemFormModalProps> = ({
           inventory_type: inventoryType,
           inspection_type: inspectionType,
           expected_quantity: effectiveTotalQuantity,
-          status: 'completed',
+          status: isCleanNamePlaceholder ? 'pending_information' : 'completed',
           identification_code:
             inventoryType === 'individual'
               ? identificationCode.trim().toUpperCase()

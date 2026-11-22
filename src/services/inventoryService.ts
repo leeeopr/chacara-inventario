@@ -1347,9 +1347,16 @@ function normalizeJoinedItem(raw: any): InventoryItem {
       ? raw.expected_quantity || 1
       : 0;
 
+  const isPlaceholderName =
+    !raw.name ||
+    raw.name.trim() === '' ||
+    raw.name.trim().toLowerCase().startsWith('item pendente') ||
+    raw.name.trim().toLowerCase().startsWith('foto pendente');
+
   const itemStatus: InventoryItemStatus =
-    raw.status ||
-    (String(raw.name || '').startsWith('Item pendente') ? 'pending_information' : 'completed');
+    isPlaceholderName
+      ? 'pending_information'
+      : (raw.status || 'completed');
 
   return {
     ...raw,

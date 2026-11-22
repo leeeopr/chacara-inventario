@@ -23,6 +23,7 @@ import { getInventoryImageUrl } from '../lib/supabase';
 import {
   AiClassificationResult,
   classifyBatchItemsWithAi,
+  classifyInventoryItemWithAi,
   getAiApiKey,
   saveAiApiKey,
 } from '../services/aiVisionService';
@@ -85,15 +86,22 @@ export const BatchAiClassificationModal: React.FC<BatchAiClassificationModalProp
     setApiKeyInput(getAiApiKey());
     setSaveSuccessMsg(null);
 
-    const initialStates: BatchItemEditState[] = items.map((it) => ({
-      item: it,
-      status: 'idle',
-      suggestedName: it.name.startsWith('Item pendente') ? '' : it.name,
-      categoryId: it.category_id || '',
-      roomId: it.room_id || '',
-      description: it.description || '',
-      markAsCompleted: true, // Default to true so user finishes registration
-    }));
+    const initialStates: BatchItemEditState[] = items.map((it) => {
+      const isPlaceholder =
+        !it.name ||
+        it.name.trim().toLowerCase().startsWith('item pendente') ||
+        it.name.trim().toLowerCase().startsWith('foto pendente');
+
+      return {
+        item: it,
+        status: 'idle',
+        suggestedName: isPlaceholder ? '' : it.name,
+        categoryId: it.category_id || '',
+        roomId: it.room_id || '',
+        description: it.description || '',
+        markAsCompleted: !isPlaceholder, // Só marca concluído se já tiver nome real
+      };
+    });
 
     setItemStates(initialStates);
     setProgress({ current: 0, total: items.length });
@@ -157,6 +165,11 @@ export const BatchAiClassificationModal: React.FC<BatchAiClassificationModalProp
             setItemStates((prev) =>
               prev.map((s) => {
                 if (s.item.id === result.itemId) {
+                  const hasValidName = Boolean(
+                    result.suggestedName &&
+                      result.suggestedName.trim().length > 0 &&
+                      !result.suggestedName.trim().toLowerCase().startsWith('item pendente')
+                  );
                   return {
                     ...s,
                     status: 'done',
@@ -166,6 +179,7 @@ export const BatchAiClassificationModal: React.FC<BatchAiClassificationModalProp
                     roomId: result.matchedRoomId || s.roomId,
                     description: result.description || s.description,
                     confidence: result.confidence,
+                    markAsCompleted: hasValidName, // Só marca para concluir se IA identificou o nome!
                   };
                 }
                 return s;
@@ -181,6 +195,7 @@ export const BatchAiClassificationModal: React.FC<BatchAiClassificationModalProp
                   ...s,
                   status: 'error',
                   errorMessage: error.message || 'Erro ao analisar imagem',
+                  markAsCompleted: false, // Permanece como pendente
                 };
               }
               return s;
@@ -192,6 +207,66 @@ export const BatchAiClassificationModal: React.FC<BatchAiClassificationModalProp
       console.error('Falha geral no lote de IA:', err);
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  // Retry AI on a single item
+  const handleRetrySingleItem = async (stateToRetry: BatchItemEditState) => {
+    if (isAnalyzing || stateToRetry.status === 'analyzing') return;
+
+    setItemStates((prev) =>
+      prev.map((s) =>
+        s.item.id === stateToRetry.item.id
+          ? { ...s, status: 'analyzing', errorMessage: undefined }
+          : s
+      )
+    );
+
+    try {
+      const result = await classifyInventoryItemWithAi({
+        item: stateToRetry.item,
+        categories,
+        rooms,
+        apiKey: apiKeyInput.trim() || undefined,
+      });
+
+      const hasValidName = Boolean(
+        result.suggestedName &&
+          result.suggestedName.trim().length > 0 &&
+          !result.suggestedName.trim().toLowerCase().startsWith('item pendente')
+      );
+
+      setItemStates((prev) =>
+        prev.map((s) => {
+          if (s.item.id === stateToRetry.item.id) {
+            return {
+              ...s,
+              status: 'done',
+              suggestedName: result.suggestedName,
+              categoryId: result.matchedCategoryId || s.categoryId,
+              suggestedCategoryName: result.suggestedCategoryName,
+              roomId: result.matchedRoomId || s.roomId,
+              description: result.description || s.description,
+              confidence: result.confidence,
+              markAsCompleted: hasValidName,
+            };
+          }
+          return s;
+        })
+      );
+    } catch (err: any) {
+      setItemStates((prev) =>
+        prev.map((s) =>
+          s.item.id === stateToRetry.item.id
+            ? {
+                ...s,
+                status: 'error',
+                errorMessage: err.message || 'Erro ao analisar imagem',
+                markAsCompleted: false,
+              }
+            : s
+        )
+      );
     }
   };
 
@@ -215,16 +290,28 @@ export const BatchAiClassificationModal: React.FC<BatchAiClassificationModalProp
     setSaveSuccessMsg(null);
 
     try {
-      const updates = itemStates.map((s) => ({
-        id: s.item.id,
-        name: s.suggestedName.trim() || s.item.name,
-        category_id: s.categoryId || null,
-        room_id: s.roomId || null,
-        description: s.description.trim() || null,
-        status: (s.markAsCompleted ? 'completed' : 'pending_information') as
-          | 'completed'
-          | 'pending_information',
-      }));
+      const updates = itemStates.map((s) => {
+        const trimmedName = s.suggestedName.trim();
+        const finalName = trimmedName || s.item.name;
+        const isStillPlaceholder =
+          !finalName ||
+          finalName.toLowerCase().startsWith('item pendente') ||
+          finalName.toLowerCase().startsWith('foto pendente');
+
+        // Um item SÓ é concluído se tem nome válido E markAsCompleted foi mantido marcado
+        const shouldBeCompleted = !isStillPlaceholder && s.markAsCompleted;
+
+        return {
+          id: s.item.id,
+          name: finalName,
+          category_id: s.categoryId || null,
+          room_id: s.roomId || null,
+          description: s.description.trim() || null,
+          status: (shouldBeCompleted ? 'completed' : 'pending_information') as
+            | 'completed'
+            | 'pending_information',
+        };
+      });
 
       await onSaveBatch(updates);
       setSaveSuccessMsg('Todos os itens foram atualizados com sucesso!');
@@ -449,8 +536,15 @@ export const BatchAiClassificationModal: React.FC<BatchAiClassificationModalProp
                         value={state.suggestedName}
                         onChange={(e) => {
                           const val = e.target.value;
+                          const isValidName =
+                            val.trim().length > 0 &&
+                            !val.trim().toLowerCase().startsWith('item pendente');
                           setItemStates((prev) =>
-                            prev.map((s) => (s.item.id === state.item.id ? { ...s, suggestedName: val } : s))
+                            prev.map((s) =>
+                              s.item.id === state.item.id
+                                ? { ...s, suggestedName: val, markAsCompleted: isValidName }
+                                : s
+                            )
                           );
                         }}
                         placeholder="Identificando nome do item..."
@@ -535,6 +629,10 @@ export const BatchAiClassificationModal: React.FC<BatchAiClassificationModalProp
                         <input
                           type="checkbox"
                           checked={state.markAsCompleted}
+                          disabled={
+                            !state.suggestedName.trim() ||
+                            state.suggestedName.trim().toLowerCase().startsWith('item pendente')
+                          }
                           onChange={(e) => {
                             const checked = e.target.checked;
                             setItemStates((prev) =>
@@ -543,13 +641,41 @@ export const BatchAiClassificationModal: React.FC<BatchAiClassificationModalProp
                               )
                             );
                           }}
-                          className="w-4 h-4 rounded text-emerald-500 bg-slate-900 border-slate-700 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                          className="w-4 h-4 rounded text-emerald-500 bg-slate-900 border-slate-700 focus:ring-0 focus:ring-offset-0 cursor-pointer disabled:opacity-40"
                         />
-                        <span className="text-xs font-extrabold text-slate-300">
-                          Liberar para conferência
+                        <span
+                          className={`text-xs font-extrabold ${
+                            !state.suggestedName.trim() ||
+                            state.suggestedName.trim().toLowerCase().startsWith('item pendente')
+                              ? 'text-slate-500'
+                              : 'text-slate-300'
+                          }`}
+                        >
+                          Liberar para conferência (Concluído)
                         </span>
                       </label>
                     </div>
+
+                    {/* Banner de erro com botão de retry */}
+                    {state.status === 'error' && (
+                      <div className="sm:col-span-2 lg:col-span-3 p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-rose-300 text-xs font-semibold">
+                          <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                          <span>
+                            {state.errorMessage || 'Falha ao analisar a imagem'} (O item permanecerá como Pendente)
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRetrySingleItem(state)}
+                          disabled={isAnalyzing}
+                          className="px-2.5 py-1 rounded-lg bg-rose-500/30 hover:bg-rose-500/40 text-rose-200 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span>Tentar Novamente</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

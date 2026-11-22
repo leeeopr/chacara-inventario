@@ -234,6 +234,16 @@ Retorne ESTRITAMENTE um objeto JSON válido no seguinte formato:
     body: JSON.stringify(requestBody),
   });
 
+  // Retry once on 429 Rate Limit
+  if (response.status === 429) {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+  }
+
   // If primary model failed (e.g. 404), fallback to fallback model
   if (!response.ok && response.status === 404) {
     const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_FALLBACK_MODEL}:generateContent?key=${encodeURIComponent(
@@ -341,6 +351,8 @@ export async function classifyBatchItemsWithAi(params: {
         onErrorItem?.(currentItem, err);
         onProgress?.(completedCount, items.length);
       }
+      // Pacing between requests to respect rate limits
+      await new Promise((resolve) => setTimeout(resolve, 600));
     }
   }
 
