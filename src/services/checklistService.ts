@@ -54,9 +54,17 @@ export function setActiveSessionIdLocal(sessionId: string | null): void {
 // SESSION MANAGEMENT
 // ============================================================================
 
+export interface StayLinkInfo {
+  reservation_id?: string | null;
+  reservation_code?: string | null;
+  guest_name_snapshot?: string | null;
+  stay_period_snapshot?: string | null;
+}
+
 export async function getOrCreateActiveChecklistSession(
   rooms: Room[],
-  forceNew = false
+  forceNew = false,
+  stayInfo?: StayLinkInfo
 ): Promise<{
   session: ChecklistSession;
   roomProgressList: ChecklistRoomProgress[];
@@ -107,6 +115,10 @@ export async function getOrCreateActiveChecklistSession(
       .insert({
         status: 'in_progress',
         inspector_name: 'Responsável',
+        reservation_id: stayInfo?.reservation_id || null,
+        reservation_code: stayInfo?.reservation_code || null,
+        guest_name_snapshot: stayInfo?.guest_name_snapshot || null,
+        stay_period_snapshot: stayInfo?.stay_period_snapshot || null,
       })
       .select('*')
       .single();
@@ -155,6 +167,10 @@ export async function getOrCreateActiveChecklistSession(
       inspector_name: 'Responsável',
       notes: null,
       created_at: new Date().toISOString(),
+      reservation_id: stayInfo?.reservation_id || null,
+      reservation_code: stayInfo?.reservation_code || null,
+      guest_name_snapshot: stayInfo?.guest_name_snapshot || null,
+      stay_period_snapshot: stayInfo?.stay_period_snapshot || null,
     };
     localSessions.unshift(session);
     setLocalJson(LS_SESSIONS_BACKUP_KEY, localSessions);

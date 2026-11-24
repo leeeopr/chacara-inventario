@@ -13,6 +13,10 @@ export interface ChecklistSession {
   inspector_name: string | null;
   notes: string | null;
   created_at: string;
+  reservation_id?: string | null;
+  reservation_code?: string | null;
+  guest_name_snapshot?: string | null;
+  stay_period_snapshot?: string | null;
 }
 
 export interface ChecklistRoomProgress {
@@ -70,5 +74,12 @@ export interface ChecklistSessionSummary {
   foundItems: number;
   missingItemsCount: number;
   damagedItemsCount: number;
+  occurrences: ChecklistOccurrence[];
+}
+
+export interface SessionWithDetails {
+  session: ChecklistSession;
+  roomProgressList: ChecklistRoomProgress[];
+  itemResults: ChecklistItemResult[];
   occurrences: ChecklistOccurrence[];
 }

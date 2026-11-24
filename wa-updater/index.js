@@ -342,6 +342,55 @@ app.get('/health', (req, res) => {
   res.json({ status: 'healthy', uptime: process.uptime() });
 });
 
+// Rota para disparar o envio de documento/PDF qualquer
+app.post('/send-pdf', async (req, res) => {
+  const targetPhone = req.body?.phone || DEFAULT_PHONE;
+  const filePath = req.body?.filePath;
+  const fileName = req.body?.fileName || 'documento.pdf';
+  const caption = req.body?.caption || '';
+
+  console.log(`📡 Requisição HTTP POST /send-pdf recebida para ${targetPhone}: ${fileName}`);
+
+  if (!sock || !isConnected) {
+    return res.status(503).json({
+      success: false,
+      error: 'WhatsApp Baileys não está conectado no momento.'
+    });
+  }
+
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(400).json({
+      success: false,
+      error: `Arquivo não encontrado no caminho: ${filePath}`
+    });
+  }
+
+  try {
+    const cleanPhone = targetPhone.replace(/\D/g, '');
+    const jid = `${cleanPhone}@s.whatsapp.net`;
+    const fileBuffer = fs.readFileSync(filePath);
+
+    await sock.sendMessage(jid, {
+      document: fileBuffer,
+      mimetype: 'application/pdf',
+      fileName: fileName,
+      caption: caption
+    });
+
+    console.log(`✅ PDF ${fileName} enviado com sucesso para ${cleanPhone}!`);
+    return res.json({
+      success: true,
+      message: `PDF enviado com sucesso para +${targetPhone}`
+    });
+  } catch (err) {
+    console.error('❌ Erro no envio via HTTP /send-pdf:', err?.message || err);
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Erro ao enviar PDF'
+    });
+  }
+});
+
 // Rota para disparar o envio do APK (usada pelo app ou curl)
 app.post('/send-apk', async (req, res) => {
   const targetPhone = req.body?.phone || DEFAULT_PHONE;

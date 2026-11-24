@@ -57,11 +57,14 @@ import { PreChecklistConfigModal } from './components/PreChecklistConfigModal';
 import { PreChecklistExecutionModal } from './components/PreChecklistExecutionModal';
 import { SeniorChecklistMain } from './components/SeniorChecklistMain';
 import { SeniorRoomInspection } from './components/SeniorRoomInspection';
+import { StaysCalendarModal } from './components/StaysCalendarModal';
 import { SupabaseConfigModal } from './components/SupabaseConfigModal';
 import { VisualAccessibilityModal } from './components/VisualAccessibilityModal';
 import { InspectionType } from './lib/inspectionTypeUtils';
 import { getInventoryImageUrl, isSupabaseConfigured } from './lib/supabase';
 import { checkForUpdate } from './services/otaUpdateService';
+import { fetchStays, startChecklistForStay } from './services/staysService';
+import { Stay } from './types/stay';
 import {
   fetchPreChecklistActions,
   fetchPreChecklistCompletions,
@@ -153,6 +156,10 @@ export function App() {
   const [isPrefixesModalOpen, setIsPrefixesModalOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
+  // Stays & Calendar State
+  const [isStaysCalendarOpen, setIsStaysCalendarOpen] = useState(false);
+  const [pendingStaysCount, setPendingStaysCount] = useState(0);
+
   // Visual Accessibility State
   const [isVisualScaleModalOpen, setIsVisualScaleModalOpen] = useState(false);
 
@@ -223,6 +230,10 @@ export function App() {
         setIsHistoryModalOpen(false);
         return true;
       }
+      if (isStaysCalendarOpen) {
+        setIsStaysCalendarOpen(false);
+        return true;
+      }
       if (isFloorPlanModalOpen) {
         setIsFloorPlanModalOpen(false);
         return true;
@@ -279,6 +290,7 @@ export function App() {
     deletingItem,
     isAdminDrawerOpen,
     isHistoryModalOpen,
+    isStaysCalendarOpen,
     isFloorPlanModalOpen,
     isRoomsModalOpen,
     isRoomOrderModalOpen,
@@ -371,6 +383,15 @@ export function App() {
         setPreChecklistActions([]);
         setPreChecklistCompletions(new Set());
       }
+
+      // Load pending stays count safely
+      try {
+        const stays = await fetchStays();
+        const pending = stays.filter((s) => s.checklist_status === 'pending').length;
+        setPendingStaysCount(pending);
+      } catch (stayErr) {
+        // Safe fallback if offline
+      }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Erro ao sincronizar dados.');
     } finally {
@@ -433,6 +454,29 @@ export function App() {
       showToast('Nova vistoria iniciada com sucesso!');
     } catch (err: any) {
       setErrorMsg(err?.message || 'Erro ao iniciar nova vistoria.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Start a checklist inspection session linked to a reservation/stay
+  const handleStartChecklistForStay = async (stay: Stay) => {
+    setIsLoading(true);
+    try {
+      const newSessionDetail = await startChecklistForStay(stay, rooms);
+      setActiveSession(newSessionDetail.session);
+      setRoomProgressList(newSessionDetail.roomProgressList);
+      setItemResults(newSessionDetail.itemResults);
+      setOccurrences(newSessionDetail.occurrences);
+      setPreChecklistCompletions(new Set());
+      setActiveRoom(null);
+      setAppScreen('checklist_main');
+      setIsStaysCalendarOpen(false);
+      showToast(
+        `Vistoria vinculada à estadia de ${stay.guest_name} (${stay.code || 'Reserva'}) iniciada!`
+      );
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Erro ao iniciar vistoria para esta estadia.');
     } finally {
       setIsLoading(false);
     }
@@ -1666,6 +1710,8 @@ export function App() {
         session={activeSession}
         preChecklistActions={preChecklistActions}
         preChecklistCompletions={preChecklistCompletions}
+        pendingStaysCount={pendingStaysCount}
+        onOpenStaysCalendar={() => setIsStaysCalendarOpen(true)}
         onOpenPreChecklist={() => setIsPreChecklistExecutionOpen(true)}
         onSelectRoom={(room) => {
           setActiveRoom(room);
@@ -1691,9 +1737,17 @@ export function App() {
         onOpenSupabase={() => setIsSupabaseModalOpen(true)}
         onOpenPreChecklistConfig={() => setIsPreChecklistConfigOpen(true)}
         onOpenHistory={() => setIsHistoryModalOpen(true)}
+        onOpenStaysCalendar={() => setIsStaysCalendarOpen(true)}
         onOpenVisualScale={() => setIsVisualScaleModalOpen(true)}
         onStartNewInspection={handleStartNewInspection}
         onOpenOtaSettings={() => setIsOtaSettingsModalOpen(true)}
+      />
+
+      {/* Stays & Calendar Modal */}
+      <StaysCalendarModal
+        isOpen={isStaysCalendarOpen}
+        onClose={() => setIsStaysCalendarOpen(false)}
+        onStartChecklistForStay={handleStartChecklistForStay}
       />
 
       {/* Floor Plan (Planta da Chácara) Modal */}

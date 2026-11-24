@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ArrowUpDown,
   Boxes,
+  Calendar,
   Compass,
   Database,
   FolderTree,
@@ -31,6 +32,7 @@ interface DiscreetAdminDrawerProps {
   onOpenSupabase: () => void;
   onOpenHistory: () => void;
   onStartNewInspection: () => void;
+  onOpenStaysCalendar?: () => void;
   onOpenOtaSettings?: () => void;
   onOpenVisualScale?: () => void;
   onOpenPreChecklistConfig?: () => void;
@@ -49,6 +51,7 @@ export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
   onOpenSupabase,
   onOpenHistory,
   onStartNewInspection,
+  onOpenStaysCalendar,
   onOpenOtaSettings,
   onOpenVisualScale,
   onOpenPreChecklistConfig,
@@ -93,12 +96,35 @@ export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
               Ações da Vistoria
             </span>
 
+            {onOpenStaysCalendar && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenStaysCalendar();
+                }}
+                className="w-full p-3.5 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 flex items-center gap-3 text-left transition-colors cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-500/30 text-amber-300 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="block text-sm font-extrabold text-amber-200">
+                    Estadias & Calendário
+                  </span>
+                  <span className="block text-xs text-amber-300/80">
+                    Ver saídas e conferências pendentes
+                  </span>
+                </div>
+              </button>
+            )}
+
             <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onStartNewInspection();
-              }}
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onStartNewInspection();
+                }}
               className="w-full p-3.5 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center gap-3 text-left transition-colors"
             >
               <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">

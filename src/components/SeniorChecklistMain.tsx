@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Award,
+  Calendar,
   Check,
   CheckCircle2,
   Clock,
@@ -10,6 +11,7 @@ import {
   RotateCcw,
   Sliders,
   Sparkles,
+  UserCheck,
 } from 'lucide-react';
 import { ChecklistRoomProgress, ChecklistSession } from '../types/checklist';
 import { Room } from '../types/inventory';
@@ -21,6 +23,8 @@ interface SeniorChecklistMainProps {
   session: ChecklistSession | null;
   preChecklistActions?: PreChecklistAction[];
   preChecklistCompletions?: Set<string>;
+  pendingStaysCount?: number;
+  onOpenStaysCalendar?: () => void;
   onOpenPreChecklist?: () => void;
   onSelectRoom: (room: Room) => void;
   onOpenAdminMenu: () => void;
@@ -35,6 +39,8 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
   session,
   preChecklistActions = [],
   preChecklistCompletions = new Set(),
+  pendingStaysCount = 0,
+  onOpenStaysCalendar,
   onOpenPreChecklist,
   onSelectRoom,
   onOpenAdminMenu,
@@ -137,6 +143,85 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
               <RotateCcw className="w-5 h-5 stroke-[2.5]" />
               <span>Nova Vistoria</span>
             </button>
+          </div>
+        )}
+
+        {/* Linked Stay Banner (if current session is tied to a reservation) */}
+        {(session?.guest_name_snapshot || session?.reservation_code) && (
+          <div className="p-4 rounded-3xl bg-indigo-950/40 border-2 border-indigo-500/50 shadow-xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border-2 border-indigo-500/40 flex items-center justify-center shrink-0">
+                <UserCheck className="w-6 h-6 stroke-[2.5]" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider bg-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/40">
+                    Estadia Vinculada
+                  </span>
+                  {session.reservation_code && (
+                    <span className="text-xs font-mono font-bold text-slate-300">
+                      {session.reservation_code}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white truncate mt-0.5">
+                  {session.guest_name_snapshot || 'Hóspede'}
+                </h3>
+                {session.stay_period_snapshot && (
+                  <p className="text-xs text-indigo-300 font-semibold truncate">
+                    Período: {session.stay_period_snapshot}
+                  </p>
+                )}
+              </div>
+            </div>
+            {onOpenStaysCalendar && (
+              <button
+                type="button"
+                onClick={onOpenStaysCalendar}
+                className="px-3 py-2 rounded-xl bg-indigo-600/40 hover:bg-indigo-600/60 text-indigo-200 text-xs font-black border border-indigo-500/50 shrink-0 transition-all"
+              >
+                Trocar Estadia
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Stays & Calendar Quick Card */}
+        {onOpenStaysCalendar && (
+          <div
+            onClick={onOpenStaysCalendar}
+            role="button"
+            tabIndex={0}
+            className="p-4 sm:p-5 rounded-3xl bg-slate-900 hover:bg-slate-850 border-2 border-indigo-500/40 hover:border-indigo-400 shadow-xl cursor-pointer transition-all active:scale-[0.99] flex flex-col sm:flex-row items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3.5 w-full sm:w-auto">
+              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 border-2 border-indigo-400 shadow-lg shadow-indigo-600/30">
+                <Calendar className="w-7 h-7 stroke-[2.5]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-lg sm:text-xl font-black text-white">
+                    Estadias & Calendário
+                  </h2>
+                  {typeof pendingStaysCount === 'number' && pendingStaysCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-black uppercase tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      {pendingStaysCount} {pendingStaysCount === 1 ? 'pendente' : 'pendentes'}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs sm:text-sm font-semibold text-slate-300 mt-0.5">
+                  {typeof pendingStaysCount === 'number' && pendingStaysCount > 0
+                    ? `${pendingStaysCount} checkouts aguardando vistoria pós-estadia`
+                    : 'Acompanhe check-ins, check-outs e vistorias por data'}
+                </p>
+              </div>
+            </div>
+
+            <div className="w-full sm:w-auto flex justify-end shrink-0">
+              <span className="w-full sm:w-auto text-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs sm:text-sm shadow-md transition-all">
+                Ver Estadias ›
+              </span>
+            </div>
           </div>
         )}
 

@@ -172,6 +172,27 @@ export const ChecklistHistoryModal: React.FC<ChecklistHistoryModalProps> = ({
                   </span>
                 </div>
 
+                {selectedSession.session.guest_name_snapshot && (
+                  <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-md bg-amber-400 text-slate-950 font-black text-[10px] tracking-wider">
+                        {selectedSession.session.reservation_code || 'RESERVA'}
+                      </span>
+                      <span className="text-xs font-black text-amber-300">
+                        Vistoria da Estadia
+                      </span>
+                    </div>
+                    <p className="text-sm font-black text-white">
+                      {selectedSession.session.guest_name_snapshot}
+                    </p>
+                    {selectedSession.session.stay_period_snapshot && (
+                      <p className="text-[11px] font-bold text-slate-400">
+                        Período: {selectedSession.session.stay_period_snapshot}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center pt-1">
                   <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
                     <span className="text-lg font-black text-white">
@@ -300,7 +321,9 @@ export const ChecklistHistoryModal: React.FC<ChecklistHistoryModalProps> = ({
                           }`}
                         />
                         <span className="text-sm font-bold text-white">
-                          Vistoria de {formatDate(item.session.started_at)}
+                          {item.session.guest_name_snapshot
+                            ? `${item.session.guest_name_snapshot} (${item.session.reservation_code || 'Reserva'})`
+                            : `Vistoria de ${formatDate(item.session.started_at)}`}
                         </span>
                       </div>
 
