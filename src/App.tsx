@@ -47,8 +47,10 @@ import { FloorPlanModal } from './components/FloorPlanModal';
 import { InventoryItemCard } from './components/InventoryItemCard';
 import { InventoryItemDetailModal } from './components/InventoryItemDetailModal';
 import { InventoryItemFormModal } from './components/InventoryItemFormModal';
+import { AuthLoginScreen } from './components/AuthLoginScreen';
 import { OtaSettingsModal } from './components/OtaSettingsModal';
 import { OtaUpdateModal } from './components/OtaUpdateModal';
+import { PiscineiroDashboard } from './components/PiscineiroDashboard';
 import { QuickRoomInspection } from './components/QuickRoomInspection';
 import { RoomCategoryManagementModal } from './components/RoomCategoryManagementModal';
 import { RoomManagementModal } from './components/RoomManagementModal';
@@ -62,8 +64,10 @@ import { SupabaseConfigModal } from './components/SupabaseConfigModal';
 import { VisualAccessibilityModal } from './components/VisualAccessibilityModal';
 import { InspectionType } from './lib/inspectionTypeUtils';
 import { getInventoryImageUrl, isSupabaseConfigured } from './lib/supabase';
+import { getCurrentUserProfile, signOutAppUser } from './services/authService';
 import { checkForUpdate } from './services/otaUpdateService';
-import { fetchStays, startChecklistForStay } from './services/staysService';
+import { fetchStays, getLocalTodayDateStr, startChecklistForStay } from './services/staysService';
+import { AppUserProfile } from './types/auth';
 import { Stay } from './types/stay';
 import {
   fetchPreChecklistActions,
@@ -106,9 +110,13 @@ import {
 } from './types/inventory';
 
 export function App() {
-  // Navigation: Primary entry point is always 'checklist_main'
+  // Authentication & Role State (Faxineira, Piscineiro, Admin)
+  const [authProfile, setAuthProfile] = useState<AppUserProfile | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+
+  // Navigation: Primary entry point depends on user role
   const [appScreen, setAppScreen] = useState<
-    'checklist_main' | 'room_inspection' | 'admin_inventory'
+    'checklist_main' | 'room_inspection' | 'admin_inventory' | 'piscineiro_view'
   >('checklist_main');
 
   // Currently inspected room
@@ -159,6 +167,7 @@ export function App() {
   // Stays & Calendar State
   const [isStaysCalendarOpen, setIsStaysCalendarOpen] = useState(false);
   const [pendingStaysCount, setPendingStaysCount] = useState(0);
+  const [pendingCleaningCount, setPendingCleaningCount] = useState(0);
 
   // Visual Accessibility State
   const [isVisualScaleModalOpen, setIsVisualScaleModalOpen] = useState(false);
@@ -384,11 +393,16 @@ export function App() {
         setPreChecklistCompletions(new Set());
       }
 
-      // Load pending stays count safely
+      // Load pending stays & cleaning counts safely
       try {
         const stays = await fetchStays();
+        const todayStr = getLocalTodayDateStr();
         const pending = stays.filter((s) => s.checklist_status === 'pending').length;
+        const pendingClean = stays.filter(
+          (s) => s.status !== 'CANCELADA' && s.checkout_date <= todayStr && s.cleaning_status === 'pending'
+        ).length;
         setPendingStaysCount(pending);
+        setPendingCleaningCount(pendingClean);
       } catch (stayErr) {
         // Safe fallback if offline
       }
@@ -397,6 +411,38 @@ export function App() {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  const refreshStaysCounts = useCallback(async () => {
+    try {
+      const stays = await fetchStays();
+      const todayStr = getLocalTodayDateStr();
+      setPendingStaysCount(stays.filter((s) => s.checklist_status === 'pending').length);
+      setPendingCleaningCount(
+        stays.filter(
+          (s) => s.status !== 'CANCELADA' && s.checkout_date <= todayStr && s.cleaning_status === 'pending'
+        ).length
+      );
+    } catch {}
+  }, []);
+
+  // Restore Supabase Auth Session on App Startup
+  useEffect(() => {
+    let active = true;
+    getCurrentUserProfile()
+      .then((profile) => {
+        if (!active) return;
+        setAuthProfile(profile);
+        if (profile?.role === 'piscineiro') {
+          setAppScreen('piscineiro_view');
+        }
+      })
+      .finally(() => {
+        if (active) setIsAuthChecking(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -439,11 +485,34 @@ export function App() {
     return set;
   }, [roomProgressList]);
 
+  // Handle Auth Login & Logout
+  const handleLoginSuccess = async (profile: AppUserProfile) => {
+    setAuthProfile(profile);
+    setAppScreen(profile.role === 'piscineiro' ? 'piscineiro_view' : 'checklist_main');
+    showToast(`Bem-vindo(a), ${profile.full_name}!`);
+    await loadAllData();
+  };
+
+  const handleLogout = async () => {
+    await signOutAppUser();
+    setAuthProfile(null);
+    setIsAdminDrawerOpen(false);
+    setIsStaysCalendarOpen(false);
+    setAppScreen('checklist_main');
+    setActiveRoom(null);
+    showToast('Você saiu da conta.');
+  };
+
   // Start a fresh new checklist inspection session
   const handleStartNewInspection = async () => {
     setIsLoading(true);
     try {
-      const newSessionDetail = await getOrCreateActiveChecklistSession(rooms, true);
+      const newSessionDetail = await getOrCreateActiveChecklistSession(
+        rooms,
+        true,
+        undefined,
+        authProfile?.full_name || 'Responsável'
+      );
       setActiveSession(newSessionDetail.session);
       setRoomProgressList(newSessionDetail.roomProgressList);
       setItemResults(newSessionDetail.itemResults);
@@ -463,7 +532,11 @@ export function App() {
   const handleStartChecklistForStay = async (stay: Stay) => {
     setIsLoading(true);
     try {
-      const newSessionDetail = await startChecklistForStay(stay, rooms);
+      const newSessionDetail = await startChecklistForStay(
+        stay,
+        rooms,
+        authProfile?.full_name || 'Responsável'
+      );
       setActiveSession(newSessionDetail.session);
       setRoomProgressList(newSessionDetail.roomProgressList);
       setItemResults(newSessionDetail.itemResults);
@@ -807,11 +880,78 @@ export function App() {
 
   // Toast feedback
   const toastNotification = toastMsg && (
-    <div className="fixed bottom-6 right-4 z-50 max-w-sm rounded-2xl bg-emerald-500 text-slate-950 px-4 py-3 shadow-2xl flex items-center gap-2.5 font-black text-sm">
+    <div className="fixed bottom-6 right-4 z-[95] max-w-sm rounded-2xl bg-emerald-500 text-slate-950 px-4 py-3 shadow-2xl flex items-center gap-2.5 font-black text-sm">
       <CheckCircle2 className="w-5 h-5 shrink-0" />
       <span>{toastMsg}</span>
     </div>
   );
+
+  // 0A. Auth Loading Splash
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 gap-4">
+        <img
+          src="/logo.png"
+          alt="Logo Chácara"
+          className="w-20 h-20 rounded-3xl object-cover shadow-2xl shadow-emerald-500/20 border-2 border-slate-800"
+        />
+        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+        <p className="text-sm font-black text-slate-300">Verificando acesso da equipe...</p>
+      </div>
+    );
+  }
+
+  // 0B. Authentication Gate (Supabase Auth Login Screen)
+  if (!authProfile) {
+    return (
+      <>
+        <AuthLoginScreen
+          onLoginSuccess={handleLoginSuccess}
+          onOpenAccessibility={() => setIsVisualScaleModalOpen(true)}
+          onOpenSupabaseConfig={() => setIsSupabaseModalOpen(true)}
+        />
+        <VisualAccessibilityModal
+          isOpen={isVisualScaleModalOpen}
+          onClose={() => setIsVisualScaleModalOpen(false)}
+        />
+        <SupabaseConfigModal
+          isOpen={isSupabaseModalOpen}
+          onClose={() => setIsSupabaseModalOpen(false)}
+          onConfigUpdated={async () => {
+            await loadAllData();
+            const restored = await getCurrentUserProfile();
+            if (restored) {
+              setAuthProfile(restored);
+              setAppScreen(restored.role === 'piscineiro' ? 'piscineiro_view' : 'checklist_main');
+            }
+          }}
+        />
+        {toastNotification}
+      </>
+    );
+  }
+
+  // 0C. PISCINEIRO EXCLUSIVE DASHBOARD (Role = 'piscineiro' or Admin previewing)
+  if (authProfile.role === 'piscineiro' || (authProfile.role === 'admin' && appScreen === 'piscineiro_view')) {
+    return (
+      <>
+        <PiscineiroDashboard
+          userProfile={authProfile}
+          onLogout={handleLogout}
+          onOpenAccessibility={() => setIsVisualScaleModalOpen(true)}
+          onBackToAdmin={
+            authProfile.role === 'admin' ? () => setAppScreen('checklist_main') : undefined
+          }
+          onToast={showToast}
+        />
+        <VisualAccessibilityModal
+          isOpen={isVisualScaleModalOpen}
+          onClose={() => setIsVisualScaleModalOpen(false)}
+        />
+        {toastNotification}
+      </>
+    );
+  }
 
   // 1. SCREEN: Room Inspection (Quick 3x3 Grid or Standard Guided 1-by-1)
   if (appScreen === 'room_inspection' && activeRoom && activeSession) {
@@ -880,8 +1020,8 @@ export function App() {
     );
   }
 
-  // 2. SCREEN: Administrative Inventory View (Property Owner)
-  if (appScreen === 'admin_inventory') {
+  // 2. SCREEN: Administrative Inventory View (Property Owner only)
+  if (appScreen === 'admin_inventory' && authProfile.role === 'admin') {
     return (
       <ErrorBoundary
         fallbackTitle="Erro na Gestão do Inventário"
@@ -1711,6 +1851,9 @@ export function App() {
         preChecklistActions={preChecklistActions}
         preChecklistCompletions={preChecklistCompletions}
         pendingStaysCount={pendingStaysCount}
+        pendingCleaningCount={pendingCleaningCount}
+        userProfile={authProfile}
+        onLogout={handleLogout}
         onOpenStaysCalendar={() => setIsStaysCalendarOpen(true)}
         onOpenPreChecklist={() => setIsPreChecklistExecutionOpen(true)}
         onSelectRoom={(room) => {
@@ -1727,6 +1870,9 @@ export function App() {
       <DiscreetAdminDrawer
         isOpen={isAdminDrawerOpen}
         onClose={() => setIsAdminDrawerOpen(false)}
+        userProfile={authProfile}
+        onLogout={handleLogout}
+        onOpenPiscineiroView={() => setAppScreen('piscineiro_view')}
         onOpenInventory={() => setAppScreen('admin_inventory')}
         onOpenFloorPlan={() => setIsFloorPlanModalOpen(true)}
         onOpenRooms={() => setIsRoomsModalOpen(true)}
@@ -1748,6 +1894,10 @@ export function App() {
         isOpen={isStaysCalendarOpen}
         onClose={() => setIsStaysCalendarOpen(false)}
         onStartChecklistForStay={handleStartChecklistForStay}
+        onViewHistoryForStay={() => setIsHistoryModalOpen(true)}
+        userRole={authProfile.role}
+        userName={authProfile.full_name}
+        onStaysUpdated={refreshStaysCounts}
       />
 
       {/* Floor Plan (Planta da Chácara) Modal */}

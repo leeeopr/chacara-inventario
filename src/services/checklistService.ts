@@ -64,7 +64,8 @@ export interface StayLinkInfo {
 export async function getOrCreateActiveChecklistSession(
   rooms: Room[],
   forceNew = false,
-  stayInfo?: StayLinkInfo
+  stayInfo?: StayLinkInfo,
+  inspectorName = 'Responsável'
 ): Promise<{
   session: ChecklistSession;
   roomProgressList: ChecklistRoomProgress[];
@@ -114,7 +115,7 @@ export async function getOrCreateActiveChecklistSession(
       .from('checklist_sessions')
       .insert({
         status: 'in_progress',
-        inspector_name: 'Responsável',
+        inspector_name: inspectorName || 'Responsável',
         reservation_id: stayInfo?.reservation_id || null,
         reservation_code: stayInfo?.reservation_code || null,
         guest_name_snapshot: stayInfo?.guest_name_snapshot || null,
@@ -164,7 +165,7 @@ export async function getOrCreateActiveChecklistSession(
       status: 'in_progress',
       started_at: new Date().toISOString(),
       completed_at: null,
-      inspector_name: 'Responsável',
+      inspector_name: inspectorName || 'Responsável',
       notes: null,
       created_at: new Date().toISOString(),
       reservation_id: stayInfo?.reservation_id || null,

@@ -2,6 +2,10 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export const STORAGE_BUCKET = 'inventory-photos';
 
+export const DEFAULT_SUPABASE_URL = 'https://jhsbdqrsyvljafqdeswg.supabase.co';
+export const DEFAULT_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impoc2JkcXJzeXZsamFmcWRlc3dnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4NDUzMzksImV4cCI6MjExMDQyMTMzOX0.H0e6nziwnVuG2fIJPeHXKPycfDz5ySPSxJWBJkAD1yY';
+
 const LS_SUPABASE_URL_KEY = 'chacara_supabase_url';
 const LS_SUPABASE_ANON_KEY = 'chacara_supabase_anon_key';
 
@@ -15,7 +19,11 @@ export function isValidSupabaseUrl(urlStr: string): boolean {
   }
 }
 
-export function getSupabaseConfig(): { url: string; anonKey: string; source: 'env' | 'local' | 'unconfigured' } {
+export function getSupabaseConfig(): {
+  url: string;
+  anonKey: string;
+  source: 'env' | 'local' | 'default' | 'unconfigured';
+} {
   const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
@@ -44,6 +52,14 @@ export function getSupabaseConfig(): { url: string; anonKey: string; source: 'en
       url: envUrl.trim().replace(/\/+$/, ''),
       anonKey: envKey.trim(),
       source: 'env',
+    };
+  }
+
+  if (isValidSupabaseUrl(DEFAULT_SUPABASE_URL) && DEFAULT_SUPABASE_ANON_KEY.length > 20) {
+    return {
+      url: DEFAULT_SUPABASE_URL,
+      anonKey: DEFAULT_SUPABASE_ANON_KEY,
+      source: 'default',
     };
   }
 

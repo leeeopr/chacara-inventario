@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Droplets,
   ExternalLink,
   Eye,
   Filter,
@@ -20,6 +21,7 @@ import {
   LogOut,
   Phone,
   RefreshCw,
+  RotateCcw,
   Search,
   ShieldAlert,
   Sparkles,
@@ -28,14 +30,24 @@ import {
   X,
 } from 'lucide-react';
 import { registerBackHandler } from '../lib/backNavigation';
-import { fetchStays, formatDateBR, getStayTemporalStatus } from '../services/staysService';
-import { Stay, StayChecklistStatus } from '../types/stay';
+import {
+  fetchStays,
+  formatDateBR,
+  getLocalTodayDateStr,
+  getStayTemporalStatus,
+  updateStayCleaningStatus,
+} from '../services/staysService';
+import { UserRole } from '../types/auth';
+import { Stay, StayChecklistStatus, StayCleaningStatus } from '../types/stay';
 
 interface StaysCalendarModalProps {
   isOpen: boolean;
   onClose: () => void;
   onStartChecklistForStay: (stay: Stay) => void;
   onViewHistoryForStay?: (sessionId: string) => void;
+  userRole?: UserRole;
+  userName?: string;
+  onStaysUpdated?: () => void;
 }
 
 export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
@@ -43,15 +55,21 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
   onClose,
   onStartChecklistForStay,
   onViewHistoryForStay,
+  userRole = 'admin',
+  userName = 'Faxineira',
+  onStaysUpdated,
 }) => {
   const [stays, setStays] = useState<Stay[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [updatingCleaningId, setUpdatingCleaningId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTab, setFilterTab] = useState<'pending' | 'all' | 'completed' | 'calendar'>('pending');
+  const [filterTab, setFilterTab] = useState<'pending' | 'cleaning' | 'all' | 'completed' | 'calendar'>('pending');
   
   // Calendar Month Navigation
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
+
+  const todayStr = getLocalTodayDateStr();
 
   // Load stays from Supabase
   const loadStays = async () => {
@@ -82,14 +100,46 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
     return unregister;
   }, [isOpen, onClose]);
 
+  const handleToggleCleaning = async (stay: Stay) => {
+    const nextStatus: StayCleaningStatus = stay.cleaning_status === 'completed' ? 'pending' : 'completed';
+    setUpdatingCleaningId(stay.id);
+    try {
+      await updateStayCleaningStatus(stay.id, nextStatus, userName || 'Faxineira');
+      setStays((prev) =>
+        prev.map((s) =>
+          s.id === stay.id
+            ? {
+                ...s,
+                cleaning_status: nextStatus,
+                cleaning_completed_at: nextStatus === 'completed' ? new Date().toISOString() : null,
+                cleaning_completed_by: nextStatus === 'completed' ? userName : null,
+              }
+            : s
+        )
+      );
+      onStaysUpdated?.();
+    } catch (err) {
+      console.error('Erro ao atualizar status da faxina:', err);
+    } finally {
+      setUpdatingCleaningId(null);
+    }
+  };
+
   // Derived metrics
   const metrics = useMemo(() => {
+    const activeStays = stays.filter((s) => s.status !== 'CANCELADA');
     const total = stays.length;
-    const pending = stays.filter((s) => s.checklist_status === 'pending').length;
-    const completed = stays.filter((s) => s.checklist_status === 'completed').length;
-    const withIssues = stays.filter((s) => s.checklist_status === 'with_issues').length;
-    return { total, pending, completed, withIssues };
-  }, [stays]);
+    const pendingChecklists = stays.filter((s) => s.checklist_status === 'pending').length;
+    const pendingCleanings = activeStays.filter(
+      (s) => s.checkout_date <= todayStr && s.cleaning_status === 'pending'
+    ).length;
+    const completed = stays.filter(
+      (s) =>
+        (s.checklist_status === 'completed' || s.checklist_status === 'with_issues') &&
+        s.cleaning_status === 'completed'
+    ).length;
+    return { total, pendingChecklists, pendingCleanings, completed };
+  }, [stays, todayStr]);
 
   // Filtered stays
   const filteredStays = useMemo(() => {
@@ -97,10 +147,19 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
 
     // Tab filter
     if (filterTab === 'pending') {
-      result = result.filter((s) => s.checklist_status === 'pending');
+      result = result.filter(
+        (s) =>
+          s.checklist_status === 'pending' ||
+          (s.status !== 'CANCELADA' && s.checkout_date <= todayStr && s.cleaning_status === 'pending')
+      );
+    } else if (filterTab === 'cleaning') {
+      result = result.filter((s) => s.status !== 'CANCELADA' && s.cleaning_status === 'pending');
     } else if (filterTab === 'completed') {
       result = result.filter(
-        (s) => s.checklist_status === 'completed' || s.checklist_status === 'with_issues'
+        (s) =>
+          s.checklist_status === 'completed' ||
+          s.checklist_status === 'with_issues' ||
+          s.cleaning_status === 'completed'
       );
     }
 
@@ -126,7 +185,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
     }
 
     return result;
-  }, [stays, filterTab, selectedDateFilter, searchQuery]);
+  }, [stays, filterTab, selectedDateFilter, searchQuery, todayStr]);
 
   if (!isOpen) return null;
 
@@ -160,16 +219,16 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
               <CalendarIcon className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base sm:text-lg font-black text-white">
-                  Estadias & Calendário
+                  Estadias, Checklists &amp; Faxinas
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px] border border-emerald-500/30">
-                  Supabase Chácara
+                  {userRole === 'faxineira' ? 'Modo Faxineira' : 'Supabase Chácara'}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Vistorias e checklists vinculados aos hóspedes e datas de saída.
+                Fim das estadias vinculado aos checklists pós-saída e faxinas a realizar.
               </p>
             </div>
           </div>
@@ -196,7 +255,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
 
         {/* Top Metrics Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 p-3 sm:p-4 bg-slate-950/40 border-b border-slate-800/80 shrink-0">
-          {/* 1. Pendentes de Vistoria */}
+          {/* 1. Checklists Pendentes */}
           <div
             onClick={() => {
               setFilterTab('pending');
@@ -209,20 +268,46 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
             }`}
           >
             <div className="flex items-center justify-between text-xs font-bold text-amber-400">
-              <span className="flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                Vistorias Pendentes
+              <span className="flex items-center gap-1.5 truncate">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                Checklists Pend.
               </span>
               <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-[11px] font-black">
-                {metrics.pending}
+                {metrics.pendingChecklists}
               </span>
             </div>
             <p className="text-xl sm:text-2xl font-black text-white mt-1">
-              {metrics.pending}
+              {metrics.pendingChecklists}
             </p>
           </div>
 
-          {/* 2. Checklists Concluídos */}
+          {/* 2. Faxinas Pendentes */}
+          <div
+            onClick={() => {
+              setFilterTab('cleaning');
+              setSelectedDateFilter(null);
+            }}
+            className={`p-3 rounded-2xl border transition-all cursor-pointer ${
+              filterTab === 'cleaning' && !selectedDateFilter
+                ? 'bg-indigo-500/20 border-indigo-400 ring-1 ring-indigo-500/50 shadow-lg shadow-indigo-500/10'
+                : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs font-bold text-indigo-300">
+              <span className="flex items-center gap-1.5 truncate">
+                <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                Faxinas Pend.
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-[11px] font-black">
+                {metrics.pendingCleanings}
+              </span>
+            </div>
+            <p className="text-xl sm:text-2xl font-black text-white mt-1">
+              {metrics.pendingCleanings}
+            </p>
+          </div>
+
+          {/* 3. Concluídos */}
           <div
             onClick={() => {
               setFilterTab('completed');
@@ -248,23 +333,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
             </p>
           </div>
 
-          {/* 3. Com Avarias Registradas */}
-          <div className="p-3 rounded-2xl border bg-slate-900/60 border-slate-800">
-            <div className="flex items-center justify-between text-xs font-bold text-rose-400">
-              <span className="flex items-center gap-1.5">
-                <ShieldAlert className="w-3.5 h-3.5" />
-                Com Avarias
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-[11px] font-black">
-                {metrics.withIssues}
-              </span>
-            </div>
-            <p className="text-xl sm:text-2xl font-black text-white mt-1">
-              {metrics.withIssues}
-            </p>
-          </div>
-
-          {/* 4. Todas as Estadias */}
+          {/* 4. Total de Estadias */}
           <div
             onClick={() => {
               setFilterTab('all');
@@ -301,30 +370,30 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                 setFilterTab('pending');
                 setSelectedDateFilter(null);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 filterTab === 'pending'
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               <AlertTriangle className="w-3.5 h-3.5" />
-              <span>Pendentes ({metrics.pending})</span>
+              <span>Pendências ({metrics.pendingChecklists + metrics.pendingCleanings})</span>
             </button>
 
             <button
               type="button"
               onClick={() => {
-                setFilterTab('all');
+                setFilterTab('cleaning');
                 setSelectedDateFilter(null);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
-                filterTab === 'all'
-                  ? 'bg-slate-800 text-white shadow-md'
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                filterTab === 'cleaning'
+                  ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <List className="w-3.5 h-3.5" />
-              <span>Todas</span>
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Faxinas</span>
             </button>
 
             <button
@@ -333,7 +402,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                 setFilterTab('calendar');
                 setSelectedDateFilter(null);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 filterTab === 'calendar'
                   ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
                   : 'text-slate-400 hover:text-white'
@@ -349,7 +418,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                 setFilterTab('completed');
                 setSelectedDateFilter(null);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 filterTab === 'completed'
                   ? 'bg-emerald-500 text-slate-950 shadow-md'
                   : 'text-slate-400 hover:text-white'
@@ -357,6 +426,22 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Concluídas</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setFilterTab('all');
+                setSelectedDateFilter(null);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                filterTab === 'all'
+                  ? 'bg-slate-800 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Todas</span>
             </button>
           </div>
 
@@ -464,6 +549,10 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                   const hasCheckin = dayStays.some((s) => s.checkin_date === dateStr);
                   const hasCheckout = dayStays.some((s) => s.checkout_date === dateStr);
                   const hasPendingChecklist = dayStays.some((s) => s.checklist_status === 'pending');
+                  const hasPendingCleaning = dayStays.some(
+                    (s) => s.status !== 'CANCELADA' && s.checkout_date <= todayStr && s.cleaning_status === 'pending'
+                  );
+                  const hasPendingTask = hasPendingChecklist || hasPendingCleaning;
 
                   return (
                     <div
@@ -485,8 +574,11 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                         <span className={`text-xs font-black ${isSelected ? 'text-amber-300' : 'text-slate-300'}`}>
                           {dayNum}
                         </span>
-                        {hasPendingChecklist && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" title="Checklist Pendente" />
+                        {hasPendingTask && (
+                          <div
+                            className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"
+                            title="Checklist ou Faxina Pendente"
+                          />
                         )}
                       </div>
 
@@ -500,7 +592,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                         {hasCheckout && (
                           <div
                             className={`text-[9px] font-black px-1 rounded truncate ${
-                              hasPendingChecklist
+                              hasPendingTask
                                 ? 'bg-amber-500 text-slate-950 font-extrabold'
                                 : 'bg-slate-800 text-slate-300'
                             }`}
@@ -596,6 +688,31 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                           {stay.checklist_issues_count} Avaria(s)
                         </span>
                       )}
+
+                      {/* Faxina Badge */}
+                      {stay.cleaning_status === 'completed' ? (
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-extrabold text-xs flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          Faxina Concluída
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-extrabold text-xs flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Faxina Pendente
+                        </span>
+                      )}
+
+                      {/* Piscina Status Pill (Team visibility) */}
+                      <span
+                        className={`px-2.5 py-1 rounded-full font-bold text-xs flex items-center gap-1 border ${
+                          stay.pool_status === 'completed'
+                            ? 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+                            : 'bg-slate-800/80 text-slate-400 border-slate-700'
+                        }`}
+                      >
+                        <Droplets className="w-3 h-3" />
+                        {stay.pool_status === 'completed' ? 'Piscina Limpa' : 'Piscina Pend.'}
+                      </span>
                     </div>
                   </div>
 
@@ -653,7 +770,34 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                       Imóvel: {stay.chacara_name || 'Chácara'}
                     </span>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Faxina Action Button */}
+                      {stay.status !== 'CANCELADA' && (
+                        <button
+                          type="button"
+                          disabled={updatingCleaningId === stay.id}
+                          onClick={() => handleToggleCleaning(stay)}
+                          className={`px-3.5 py-2.5 rounded-2xl font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-60 ${
+                            stay.cleaning_status === 'completed'
+                              ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                              : 'bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg shadow-indigo-500/25'
+                          }`}
+                        >
+                          {updatingCleaningId === stay.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : stay.cleaning_status === 'completed' ? (
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4" />
+                          )}
+                          <span>
+                            {stay.cleaning_status === 'completed'
+                              ? 'Reabrir Faxina'
+                              : 'Marcar Faxina Concluída'}
+                          </span>
+                        </button>
+                      )}
+
                       {/* Button to start or continue checklist */}
                       {stay.checklist_status === 'pending' ? (
                         <button
@@ -677,7 +821,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                                 onViewHistoryForStay(stay.checklist_session_id);
                               }
                             }}
-                            className="px-3.5 py-2 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                            className="px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                           >
                             <Eye className="w-3.5 h-3.5 text-emerald-400" />
                             <span>Ver Relatório da Vistoria</span>
@@ -690,7 +834,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                             onClose();
                             onStartChecklistForStay(stay);
                           }}
-                          className="px-3.5 py-2 rounded-2xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                          className="px-3.5 py-2.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                         >
                           <span>Iniciar Vistoria Antecipada</span>
                         </button>

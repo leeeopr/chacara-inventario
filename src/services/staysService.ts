@@ -6,10 +6,24 @@
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
 import { ChecklistSession, SessionWithDetails } from '../types/checklist';
 import { Room } from '../types/inventory';
-import { Stay, StayChecklistStatus } from '../types/stay';
+import {
+  Stay,
+  StayChecklistStatus,
+  StayCleaningStatus,
+  StayPoolStatus,
+} from '../types/stay';
 import { getOrCreateActiveChecklistSession, StayLinkInfo } from './checklistService';
 
 const LS_CACHED_STAYS_KEY = 'chacara_cached_stays_v1';
+
+// Helper: Local YYYY-MM-DD (avoids late-evening UTC date rollover in Brazil)
+export function getLocalTodayDateStr(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 // Helper: Format date strings YYYY-MM-DD to DD/MM/YYYY
 export function formatDateBR(dateStr?: string | null): string {
@@ -23,7 +37,7 @@ export function formatDateBR(dateStr?: string | null): string {
 
 // Helper: Calculate checkout/stay status relative to today
 export function getStayTemporalStatus(checkinDate: string, checkoutDate: string): 'past' | 'today' | 'current' | 'future' {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalTodayDateStr();
   if (checkoutDate === today) return 'today';
   if (checkoutDate < today) return 'past';
   if (checkinDate <= today && today <= checkoutDate) return 'current';
@@ -32,7 +46,7 @@ export function getStayTemporalStatus(checkinDate: string, checkoutDate: string)
 
 /**
  * Fetch all stays (reservations) from the unified Supabase database,
- * cross-referencing completed checklist sessions and occurrences.
+ * cross-referencing completed checklist sessions, occurrences, cleaning and pool tasks.
  */
 export async function fetchStays(): Promise<Stay[]> {
   if (isSupabaseConfigured()) {
@@ -43,6 +57,7 @@ export async function fetchStays(): Promise<Stay[]> {
       const { data: resData, error: resErr } = await supabase
         .from('reservations')
         .select('*, client:clients(*), chacara:chacaras(*)')
+        .or('is_deleted.is.null,is_deleted.eq.false')
         .order('checkout_date', { ascending: false });
 
       if (resErr) {
@@ -77,7 +92,7 @@ export async function fetchStays(): Promise<Stay[]> {
         }
       }
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalTodayDateStr();
 
       // 4. Map to unified Stay models
       const stays: Stay[] = (resData || []).map((raw: any) => {
@@ -107,6 +122,11 @@ export async function fetchStays(): Promise<Stay[]> {
         const children = Number(raw.guests_children) || 0;
         const pets = Number(raw.guests_pets) || 0;
 
+        const cleaningStatus: StayCleaningStatus =
+          raw.cleaning_status === 'completed' ? 'completed' : 'pending';
+        const poolStatus: StayPoolStatus =
+          raw.pool_status === 'completed' ? 'completed' : 'pending';
+
         return {
           id: raw.id,
           code: raw.code || `RES-${raw.id.slice(0, 6).toUpperCase()}`,
@@ -122,15 +142,23 @@ export async function fetchStays(): Promise<Stay[]> {
           guests_adults: adults,
           guests_children: children,
           guests_pets: pets,
-          total_guests: adults + children,
+          total_guests: Number(raw.total_guests) || adults + children,
           status: raw.status || 'CONFIRMADA',
           special_requests: raw.special_requests || null,
-          notes: raw.checkout_notes || raw.checkin_notes || null,
+          notes: raw.internal_notes || raw.checkout_notes || raw.checkin_notes || null,
           checklist_status: checklistStatus,
           checklist_session_id: linkedSession?.id || null,
           checklist_completed_at: linkedSession?.completed_at || null,
           checklist_issues_count: issuesCount,
           checklist_inspector_name: linkedSession?.inspector_name || null,
+          cleaning_status: cleaningStatus,
+          cleaning_completed_at: raw.cleaning_completed_at || null,
+          cleaning_completed_by: raw.cleaning_completed_by || null,
+          cleaning_notes: raw.cleaning_notes || null,
+          pool_status: poolStatus,
+          pool_cleaned_at: raw.pool_cleaned_at || null,
+          pool_cleaned_by: raw.pool_cleaned_by || null,
+          pool_notes: raw.pool_notes || null,
         };
       });
 
@@ -159,11 +187,92 @@ function getCachedStaysFallback(): Stay[] {
     try {
       const cached = localStorage.getItem(LS_CACHED_STAYS_KEY);
       if (cached) {
-        return JSON.parse(cached);
+        return (JSON.parse(cached) as Stay[]).map((s) => ({
+          ...s,
+          cleaning_status: s.cleaning_status || 'pending',
+          pool_status: s.pool_status || 'pending',
+        }));
       }
     } catch {}
   }
   return [];
+}
+
+function updateCachedStay(stayId: string, patch: Partial<Stay>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const cached = getCachedStaysFallback();
+    const updated = cached.map((s) => (s.id === stayId ? { ...s, ...patch } : s));
+    localStorage.setItem(LS_CACHED_STAYS_KEY, JSON.stringify(updated));
+  } catch {}
+}
+
+/**
+ * Update post-stay cleaning (Faxina) status on a reservation
+ */
+export async function updateStayCleaningStatus(
+  stayId: string,
+  status: StayCleaningStatus,
+  completedBy = 'Faxineira'
+): Promise<void> {
+  const nowIso = status === 'completed' ? new Date().toISOString() : null;
+  const byVal = status === 'completed' ? completedBy : null;
+
+  updateCachedStay(stayId, {
+    cleaning_status: status,
+    cleaning_completed_at: nowIso,
+    cleaning_completed_by: byVal,
+  });
+
+  if (!isSupabaseConfigured()) return;
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from('reservations')
+    .update({
+      cleaning_status: status,
+      cleaning_completed_at: nowIso,
+      cleaning_completed_by: byVal,
+    })
+    .eq('id', stayId);
+
+  if (error) {
+    throw new Error(`Erro ao atualizar status da faxina: ${error.message}`);
+  }
+}
+
+/**
+ * Update pool cleaning (Limpeza da Piscina) status on a reservation
+ */
+export async function updateStayPoolStatus(
+  stayId: string,
+  status: StayPoolStatus,
+  cleanedBy = 'Piscineiro'
+): Promise<void> {
+  const nowIso = status === 'completed' ? new Date().toISOString() : null;
+  const byVal = status === 'completed' ? cleanedBy : null;
+
+  updateCachedStay(stayId, {
+    pool_status: status,
+    pool_cleaned_at: nowIso,
+    pool_cleaned_by: byVal,
+  });
+
+  if (!isSupabaseConfigured()) return;
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from('reservations')
+    .update({
+      pool_status: status,
+      pool_cleaned_at: nowIso,
+      pool_cleaned_by: byVal,
+    })
+    .eq('id', stayId);
+
+  if (error) {
+    throw new Error(`Erro ao atualizar status da piscina: ${error.message}`);
+  }
 }
 
 /**
@@ -181,6 +290,6 @@ export async function startChecklistForStay(
     stay_period_snapshot: `${formatDateBR(stay.checkin_date)} a ${formatDateBR(stay.checkout_date)}`,
   };
 
-  const res = await getOrCreateActiveChecklistSession(rooms, true, stayInfo);
+  const res = await getOrCreateActiveChecklistSession(rooms, true, stayInfo, inspectorName);
   return res;
 }

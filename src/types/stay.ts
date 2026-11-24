@@ -4,6 +4,8 @@
 // ============================================================================
 
 export type StayChecklistStatus = 'pending' | 'completed' | 'with_issues' | 'not_required';
+export type StayCleaningStatus = 'pending' | 'completed';
+export type StayPoolStatus = 'pending' | 'completed';
 
 export type StaySystemStatus =
   | 'PRE_RESERVA'
@@ -37,6 +39,14 @@ export interface Stay {
   checklist_completed_at?: string | null;
   checklist_issues_count?: number;
   checklist_inspector_name?: string | null;
+  cleaning_status: StayCleaningStatus;
+  cleaning_completed_at?: string | null;
+  cleaning_completed_by?: string | null;
+  cleaning_notes?: string | null;
+  pool_status: StayPoolStatus;
+  pool_cleaned_at?: string | null;
+  pool_cleaned_by?: string | null;
+  pool_notes?: string | null;
 }
 
 export interface StayFilters {

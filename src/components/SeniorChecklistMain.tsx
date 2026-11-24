@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock,
   Home,
+  LogOut,
   Menu,
   Power,
   RotateCcw,
@@ -13,6 +14,8 @@ import {
   Sparkles,
   UserCheck,
 } from 'lucide-react';
+import { getRoleBadgeColor, getRoleLabel } from '../services/authService';
+import { AppUserProfile } from '../types/auth';
 import { ChecklistRoomProgress, ChecklistSession } from '../types/checklist';
 import { Room } from '../types/inventory';
 import { PreChecklistAction } from '../types/preChecklist';
@@ -24,6 +27,9 @@ interface SeniorChecklistMainProps {
   preChecklistActions?: PreChecklistAction[];
   preChecklistCompletions?: Set<string>;
   pendingStaysCount?: number;
+  pendingCleaningCount?: number;
+  userProfile?: AppUserProfile | null;
+  onLogout?: () => void;
   onOpenStaysCalendar?: () => void;
   onOpenPreChecklist?: () => void;
   onSelectRoom: (room: Room) => void;
@@ -40,6 +46,9 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
   preChecklistActions = [],
   preChecklistCompletions = new Set(),
   pendingStaysCount = 0,
+  pendingCleaningCount = 0,
+  userProfile = null,
+  onLogout,
   onOpenStaysCalendar,
   onOpenPreChecklist,
   onSelectRoom,
@@ -118,6 +127,35 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
 
       {/* Main Container */}
       <main className="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 space-y-4">
+        {/* Logged User Bar */}
+        {userProfile && (
+          <div className="px-4 py-3 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase border shrink-0 ${getRoleBadgeColor(
+                  userProfile.role
+                )}`}
+              >
+                {getRoleLabel(userProfile.role)}
+              </span>
+              <span className="text-xs sm:text-sm font-bold text-slate-200 truncate">
+                {userProfile.full_name}
+              </span>
+            </div>
+
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 text-xs font-black flex items-center gap-1.5 shrink-0 transition-all cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sair</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Celebration Banner if all rooms are done */}
         {allCompleted && (
           <div className="p-5 rounded-3xl bg-gradient-to-r from-emerald-950/60 to-teal-950/60 border-2 border-emerald-400 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn text-center sm:text-left">
@@ -201,18 +239,23 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-lg sm:text-xl font-black text-white">
-                    Estadias & Calendário
+                    Estadias, Checklists &amp; Faxinas
                   </h2>
                   {typeof pendingStaysCount === 'number' && pendingStaysCount > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-xs font-black uppercase tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                      {pendingStaysCount} {pendingStaysCount === 1 ? 'pendente' : 'pendentes'}
+                      {pendingStaysCount} {pendingStaysCount === 1 ? 'checklist pend.' : 'checklists pend.'}
+                    </span>
+                  )}
+                  {typeof pendingCleaningCount === 'number' && pendingCleaningCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-black uppercase tracking-wide bg-indigo-500/25 text-indigo-200 border border-indigo-400/50">
+                      {pendingCleaningCount} {pendingCleaningCount === 1 ? 'faxina pend.' : 'faxinas pend.'}
                     </span>
                   )}
                 </div>
                 <p className="text-xs sm:text-sm font-semibold text-slate-300 mt-0.5">
-                  {typeof pendingStaysCount === 'number' && pendingStaysCount > 0
-                    ? `${pendingStaysCount} checkouts aguardando vistoria pós-estadia`
-                    : 'Acompanhe check-ins, check-outs e vistorias por data'}
+                  {(pendingStaysCount || 0) + (pendingCleaningCount || 0) > 0
+                    ? 'Veja saídas de hóspedes com checklists e faxinas pós-estadia pendentes'
+                    : 'Acompanhe check-outs, checklists de saída e calendário de faxinas'}
                 </p>
               </div>
             </div>
