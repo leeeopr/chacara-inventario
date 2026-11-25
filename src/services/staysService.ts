@@ -326,6 +326,10 @@ export async function fetchStays(): Promise<Stay[]> {
         } else {
           checklistStatus = 'pending';
         }
+      } else if (opState.checklist_status === 'completed') {
+        checklistStatus = 'completed';
+      } else if (opState.checklist_status === 'with_issues') {
+        checklistStatus = 'with_issues';
       } else {
         // If checkout has already arrived or passed, post-stay inspection is pending
         if (raw.checkout_date <= today && raw.status !== 'CANCELADA') {
@@ -508,4 +512,173 @@ export async function startChecklistForStay(
 
   const res = await getOrCreateActiveChecklistSession(rooms, true, stayInfo, inspectorName);
   return res;
+}
+
+/**
+ * Mark all tasks (Checklist/Vistoria, Faxina and Piscina) as COMPLETED for a Stay.
+ * Strictly intended for the property owner (admin).
+ */
+export async function markStayEverythingCompleted(
+  stay: Stay,
+  completedBy = 'Proprietário'
+): Promise<void> {
+  const nowIso = new Date().toISOString();
+
+  // 1. Update localStorage cache
+  updateCachedStay(stay.id, {
+    checklist_status: 'completed',
+    checklist_completed_at: nowIso,
+    checklist_inspector_name: completedBy,
+    cleaning_status: 'completed',
+    cleaning_completed_at: nowIso,
+    cleaning_completed_by: completedBy,
+    pool_status: 'completed',
+    pool_cleaned_at: nowIso,
+    pool_cleaned_by: completedBy,
+  });
+
+  if (!isSupabaseConfigured()) return;
+
+  const supabase = getSupabaseClient();
+
+  // 2. Ensure or update checklist session linked to this reservation
+  let sessionId = stay.checklist_session_id;
+
+  try {
+    if (sessionId) {
+      await supabase
+        .from('checklist_sessions')
+        .update({
+          status: 'completed',
+          completed_at: nowIso,
+          inspector_name: completedBy,
+          notes: stay.notes
+            ? `${stay.notes} (Concluído pelo proprietário)`
+            : 'Concluído pelo proprietário',
+        })
+        .eq('id', sessionId);
+    } else {
+      const { data: existingSess } = await supabase
+        .from('checklist_sessions')
+        .select('id')
+        .eq('reservation_id', stay.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingSess?.id) {
+        sessionId = existingSess.id;
+        await supabase
+          .from('checklist_sessions')
+          .update({
+            status: 'completed',
+            completed_at: nowIso,
+            inspector_name: completedBy,
+            notes: 'Concluído pelo proprietário',
+          })
+          .eq('id', sessionId);
+      } else {
+        const { data: createdSess } = await supabase
+          .from('checklist_sessions')
+          .insert({
+            status: 'completed',
+            started_at: nowIso,
+            completed_at: nowIso,
+            inspector_name: completedBy,
+            notes: 'Concluído pelo proprietário (estadia anterior)',
+            reservation_id: stay.id,
+            reservation_code: stay.code,
+            guest_name_snapshot: stay.guest_name,
+            stay_period_snapshot: `${formatDateBR(stay.checkin_date)} a ${formatDateBR(stay.checkout_date)}`,
+          })
+          .select('id')
+          .single();
+
+        if (createdSess?.id) {
+          sessionId = createdSess.id;
+        }
+      }
+    }
+  } catch (sessErr) {
+    console.warn('Erro ao atualizar checklist_session para conclusão total:', sessErr);
+  }
+
+  // 3. Update reservations table in App DB
+  try {
+    const resPayload: Record<string, any> = {
+      cleaning_status: 'completed',
+      cleaning_completed_at: nowIso,
+      cleaning_completed_by: completedBy,
+      pool_status: 'completed',
+      pool_cleaned_at: nowIso,
+      pool_cleaned_by: completedBy,
+      checklist_status: 'completed',
+      checklist_completed_at: nowIso,
+      checklist_inspector_name: completedBy,
+    };
+
+    if (sessionId) {
+      resPayload.checklist_session_id = sessionId;
+    }
+
+    const { error: resErr } = await supabase
+      .from('reservations')
+      .update(resPayload)
+      .eq('id', stay.id);
+
+    if (resErr) {
+      console.warn('Erro ao atualizar reservation no App DB:', resErr.message);
+    }
+  } catch (err) {
+    console.warn('Exceção ao persistir conclusão total na reservation:', err);
+  }
+}
+
+/**
+ * Reopen all tasks for a stay (resets Checklist, Faxina and Piscina to pending).
+ * Strictly intended for the property owner (admin).
+ */
+export async function reopenStayEverything(stay: Stay): Promise<void> {
+  updateCachedStay(stay.id, {
+    checklist_status: 'pending',
+    checklist_completed_at: null,
+    checklist_inspector_name: null,
+    cleaning_status: 'pending',
+    cleaning_completed_at: null,
+    cleaning_completed_by: null,
+    pool_status: 'pending',
+    pool_cleaned_at: null,
+    pool_cleaned_by: null,
+  });
+
+  if (!isSupabaseConfigured()) return;
+
+  const supabase = getSupabaseClient();
+  try {
+    if (stay.checklist_session_id) {
+      await supabase
+        .from('checklist_sessions')
+        .update({
+          status: 'in_progress',
+          completed_at: null,
+        })
+        .eq('id', stay.checklist_session_id);
+    }
+
+    await supabase
+      .from('reservations')
+      .update({
+        cleaning_status: 'pending',
+        cleaning_completed_at: null,
+        cleaning_completed_by: null,
+        pool_status: 'pending',
+        pool_cleaned_at: null,
+        pool_cleaned_by: null,
+        checklist_status: 'pending',
+        checklist_completed_at: null,
+      })
+      .eq('id', stay.id);
+  } catch (err) {
+    console.warn('Exceção ao reabrir estadia no App DB:', err);
+  }
 }

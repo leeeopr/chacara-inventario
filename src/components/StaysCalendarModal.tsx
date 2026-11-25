@@ -35,10 +35,13 @@ import {
   formatDateBR,
   getLocalTodayDateStr,
   getStayTemporalStatus,
+  markStayEverythingCompleted,
+  reopenStayEverything,
   updateStayCleaningStatus,
+  updateStayPoolStatus,
 } from '../services/staysService';
 import { UserRole } from '../types/auth';
-import { Stay, StayChecklistStatus, StayCleaningStatus } from '../types/stay';
+import { Stay, StayChecklistStatus, StayCleaningStatus, StayPoolStatus } from '../types/stay';
 
 interface StaysCalendarModalProps {
   isOpen: boolean;
@@ -56,12 +59,16 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
   onStartChecklistForStay,
   onViewHistoryForStay,
   userRole = 'admin',
-  userName = 'Faxineira',
+  userName = 'Proprietário',
   onStaysUpdated,
 }) => {
   const [stays, setStays] = useState<Stay[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [updatingCleaningId, setUpdatingCleaningId] = useState<string | null>(null);
+  const [updatingPoolId, setUpdatingPoolId] = useState<string | null>(null);
+  const [updatingEverythingId, setUpdatingEverythingId] = useState<string | null>(null);
+  const [isBatchCompleting, setIsBatchCompleting] = useState(false);
+  const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<'pending' | 'cleaning' | 'all' | 'completed' | 'calendar'>('pending');
   
@@ -125,6 +132,158 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
     }
   };
 
+  const handleTogglePool = async (stay: Stay) => {
+    const nextStatus: StayPoolStatus = stay.pool_status === 'completed' ? 'pending' : 'completed';
+    setUpdatingPoolId(stay.id);
+    try {
+      await updateStayPoolStatus(stay.id, nextStatus, userName || 'Proprietário');
+      setStays((prev) =>
+        prev.map((s) =>
+          s.id === stay.id
+            ? {
+                ...s,
+                pool_status: nextStatus,
+                pool_cleaned_at: nextStatus === 'completed' ? new Date().toISOString() : null,
+                pool_cleaned_by: nextStatus === 'completed' ? userName : null,
+              }
+            : s
+        )
+      );
+      onStaysUpdated?.();
+    } catch (err) {
+      console.error('Erro ao atualizar status da piscina:', err);
+    } finally {
+      setUpdatingPoolId(null);
+    }
+  };
+
+  // RESTRICTED TO ADMIN / PROPRIETÁRIO: Mark all 3 tasks (Checklist, Cleaning, Pool) as COMPLETED
+  const handleMarkEverythingCompleted = async (stay: Stay) => {
+    if (userRole !== 'admin') return;
+    setUpdatingEverythingId(stay.id);
+    try {
+      await markStayEverythingCompleted(stay, userName || 'Proprietário');
+      const nowIso = new Date().toISOString();
+      setStays((prev) =>
+        prev.map((s) =>
+          s.id === stay.id
+            ? {
+                ...s,
+                checklist_status: 'completed',
+                checklist_completed_at: nowIso,
+                checklist_inspector_name: userName || 'Proprietário',
+                cleaning_status: 'completed',
+                cleaning_completed_at: nowIso,
+                cleaning_completed_by: userName || 'Proprietário',
+                pool_status: 'completed',
+                pool_cleaned_at: nowIso,
+                pool_cleaned_by: userName || 'Proprietário',
+              }
+            : s
+        )
+      );
+      setFeedbackToast(`Estadia ${stay.code} marcada como 100% concluída!`);
+      setTimeout(() => setFeedbackToast(null), 3500);
+      onStaysUpdated?.();
+    } catch (err) {
+      console.error('Erro ao marcar tudo concluído:', err);
+      alert('Erro ao marcar tudo concluído. Tente novamente.');
+    } finally {
+      setUpdatingEverythingId(null);
+    }
+  };
+
+  // RESTRICTED TO ADMIN: Reopen tasks for a stay
+  const handleReopenEverything = async (stay: Stay) => {
+    if (userRole !== 'admin') return;
+    if (!window.confirm(`Deseja reabrir as pendências da estadia ${stay.code}?`)) return;
+    setUpdatingEverythingId(stay.id);
+    try {
+      await reopenStayEverything(stay);
+      setStays((prev) =>
+        prev.map((s) =>
+          s.id === stay.id
+            ? {
+                ...s,
+                checklist_status: 'pending',
+                checklist_completed_at: null,
+                checklist_inspector_name: null,
+                cleaning_status: 'pending',
+                cleaning_completed_at: null,
+                cleaning_completed_by: null,
+                pool_status: 'pending',
+                pool_cleaned_at: null,
+                pool_cleaned_by: null,
+              }
+            : s
+        )
+      );
+      setFeedbackToast(`Pendências da estadia ${stay.code} reabertas.`);
+      setTimeout(() => setFeedbackToast(null), 3500);
+      onStaysUpdated?.();
+    } catch (err) {
+      console.error('Erro ao reabrir estadia:', err);
+    } finally {
+      setUpdatingEverythingId(null);
+    }
+  };
+
+  // Past stays that have pending tasks
+  const pastPendingStays = useMemo(() => {
+    return stays.filter(
+      (s) =>
+        s.status !== 'CANCELADA' &&
+        s.checkout_date <= todayStr &&
+        (s.checklist_status === 'pending' ||
+          s.cleaning_status === 'pending' ||
+          s.pool_status === 'pending')
+    );
+  }, [stays, todayStr]);
+
+  // RESTRICTED TO ADMIN: Concluir Todas as Estadias Anteriores
+  const handleBatchCompletePastStays = async () => {
+    if (userRole !== 'admin' || pastPendingStays.length === 0) return;
+    const confirmed = window.confirm(
+      `Deseja marcar todas as ${pastPendingStays.length} estadias passadas pendentes como CONCLUÍDAS (Vistoria, Faxina e Piscina)?`
+    );
+    if (!confirmed) return;
+
+    setIsBatchCompleting(true);
+    try {
+      for (const stay of pastPendingStays) {
+        await markStayEverythingCompleted(stay, userName || 'Proprietário');
+      }
+      const nowIso = new Date().toISOString();
+      const updatedIds = new Set(pastPendingStays.map((s) => s.id));
+      setStays((prev) =>
+        prev.map((s) =>
+          updatedIds.has(s.id)
+            ? {
+                ...s,
+                checklist_status: 'completed',
+                checklist_completed_at: nowIso,
+                checklist_inspector_name: userName || 'Proprietário',
+                cleaning_status: 'completed',
+                cleaning_completed_at: nowIso,
+                cleaning_completed_by: userName || 'Proprietário',
+                pool_status: 'completed',
+                pool_cleaned_at: nowIso,
+                pool_cleaned_by: userName || 'Proprietário',
+              }
+            : s
+        )
+      );
+      setFeedbackToast(`${pastPendingStays.length} estadias passadas foram concluídas com sucesso!`);
+      setTimeout(() => setFeedbackToast(null), 4000);
+      onStaysUpdated?.();
+    } catch (err) {
+      console.error('Erro ao concluir lote de estadias:', err);
+      alert('Erro ao concluir algumas estadias passadas.');
+    } finally {
+      setIsBatchCompleting(false);
+    }
+  };
+
   // Derived metrics
   const metrics = useMemo(() => {
     const activeStays = stays.filter((s) => s.status !== 'CANCELADA');
@@ -133,12 +292,16 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
     const pendingCleanings = activeStays.filter(
       (s) => s.checkout_date <= todayStr && s.cleaning_status === 'pending'
     ).length;
+    const pendingPools = activeStays.filter(
+      (s) => s.checkout_date <= todayStr && s.pool_status === 'pending'
+    ).length;
     const completed = stays.filter(
       (s) =>
         (s.checklist_status === 'completed' || s.checklist_status === 'with_issues') &&
-        s.cleaning_status === 'completed'
+        s.cleaning_status === 'completed' &&
+        s.pool_status === 'completed'
     ).length;
-    return { total, pendingChecklists, pendingCleanings, completed };
+    return { total, pendingChecklists, pendingCleanings, pendingPools, completed };
   }, [stays, todayStr]);
 
   // Filtered stays
@@ -150,16 +313,18 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
       result = result.filter(
         (s) =>
           s.checklist_status === 'pending' ||
-          (s.status !== 'CANCELADA' && s.checkout_date <= todayStr && s.cleaning_status === 'pending')
+          (s.status !== 'CANCELADA' &&
+            s.checkout_date <= todayStr &&
+            (s.cleaning_status === 'pending' || s.pool_status === 'pending'))
       );
     } else if (filterTab === 'cleaning') {
       result = result.filter((s) => s.status !== 'CANCELADA' && s.cleaning_status === 'pending');
     } else if (filterTab === 'completed') {
       result = result.filter(
         (s) =>
-          s.checklist_status === 'completed' ||
-          s.checklist_status === 'with_issues' ||
-          s.cleaning_status === 'completed'
+          (s.checklist_status === 'completed' || s.checklist_status === 'with_issues') &&
+          s.cleaning_status === 'completed' &&
+          s.pool_status === 'completed'
       );
     }
 
@@ -608,6 +773,43 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
             </div>
           )}
 
+          {/* Batch Complete Past Stays Banner (STRICTLY FOR ADMIN / PROPRIETÁRIO) */}
+          {userRole === 'admin' && pastPendingStays.length > 0 && filterTab === 'pending' && (
+            <div className="p-3.5 sm:p-4 rounded-3xl bg-gradient-to-r from-emerald-950/60 via-slate-900 to-emerald-950/40 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-black text-white">
+                      Estadias Anteriores com Pendências ({pastPendingStays.length})
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold text-[10px] border border-amber-500/30">
+                      Exclusivo Proprietário
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Você pode marcar estadias passadas como 100% concluídas (Vistoria, Faxina e Piscina) de uma vez.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isBatchCompleting}
+                onClick={handleBatchCompletePastStays}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition-all cursor-pointer active:scale-95 disabled:opacity-60 shrink-0"
+              >
+                {isBatchCompleting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4 stroke-[3]" />
+                )}
+                <span>Concluir Todas as Anteriores ({pastPendingStays.length})</span>
+              </button>
+            </div>
+          )}
+
           {/* Stays List */}
           {isLoading ? (
             <div className="text-center py-16 space-y-3">
@@ -702,17 +904,38 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                         </span>
                       )}
 
-                      {/* Piscina Status Pill (Team visibility) */}
-                      <span
-                        className={`px-2.5 py-1 rounded-full font-bold text-xs flex items-center gap-1 border ${
-                          stay.pool_status === 'completed'
-                            ? 'bg-sky-500/15 text-sky-300 border-sky-500/30'
-                            : 'bg-slate-800/80 text-slate-400 border-slate-700'
-                        }`}
-                      >
-                        <Droplets className="w-3 h-3" />
-                        {stay.pool_status === 'completed' ? 'Piscina Limpa' : 'Piscina Pend.'}
-                      </span>
+                      {/* Piscina Status Pill / Interactive Toggle for Admin */}
+                      {userRole === 'admin' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePool(stay)}
+                          disabled={updatingPoolId === stay.id}
+                          className={`px-2.5 py-1 rounded-full font-bold text-xs flex items-center gap-1 border transition-all cursor-pointer active:scale-95 disabled:opacity-60 ${
+                            stay.pool_status === 'completed'
+                              ? 'bg-sky-500/20 text-sky-300 border-sky-500/40 hover:bg-sky-500/30'
+                              : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-sky-500/50'
+                          }`}
+                          title="Clique para alternar o status da piscina"
+                        >
+                          {updatingPoolId === stay.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Droplets className="w-3 h-3 text-sky-400" />
+                          )}
+                          <span>{stay.pool_status === 'completed' ? 'Piscina Limpa' : 'Piscina Pend.'}</span>
+                        </button>
+                      ) : (
+                        <span
+                          className={`px-2.5 py-1 rounded-full font-bold text-xs flex items-center gap-1 border ${
+                            stay.pool_status === 'completed'
+                              ? 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+                              : 'bg-slate-800/80 text-slate-400 border-slate-700'
+                          }`}
+                        >
+                          <Droplets className="w-3 h-3" />
+                          {stay.pool_status === 'completed' ? 'Piscina Limpa' : 'Piscina Pend.'}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -839,6 +1062,47 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                           <span>Iniciar Vistoria Antecipada</span>
                         </button>
                       )}
+
+                      {/* OWNER MASTER BYPASS: Marcar Tudo Concluído (STRICTLY FOR ADMIN / PROPRIETÁRIO) */}
+                      {userRole === 'admin' && (
+                        <>
+                          {stay.checklist_status !== 'completed' ||
+                          stay.cleaning_status !== 'completed' ||
+                          stay.pool_status !== 'completed' ? (
+                            <button
+                              type="button"
+                              disabled={updatingEverythingId === stay.id || isBatchCompleting}
+                              onClick={() => handleMarkEverythingCompleted(stay)}
+                              className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
+                              title="Marcar Vistoria, Faxina e Piscina como 100% concluídos nesta estadia"
+                            >
+                              {updatingEverythingId === stay.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                              )}
+                              <span>Marcar Tudo Concluído</span>
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-3 py-2 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-black flex items-center gap-1.5">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                Tudo Concluído
+                              </span>
+                              <button
+                                type="button"
+                                disabled={updatingEverythingId === stay.id}
+                                onClick={() => handleReopenEverything(stay)}
+                                className="px-2.5 py-2 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                title="Reabrir pendências desta estadia"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                <span>Reabrir</span>
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -846,6 +1110,14 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
             })
           )}
         </div>
+
+        {/* Floating Success Feedback Toast */}
+        {feedbackToast && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 bg-emerald-500 text-slate-950 font-black text-xs px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 border border-emerald-400 animate-in fade-in slide-in-from-bottom-3 duration-200">
+            <CheckCircle2 className="w-4 h-4 fill-slate-950 text-emerald-400" />
+            <span>{feedbackToast}</span>
+          </div>
+        )}
       </div>
     </div>
   );
