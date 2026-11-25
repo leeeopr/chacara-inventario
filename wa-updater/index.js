@@ -181,17 +181,13 @@ async function sendApk(targetPhone = DEFAULT_PHONE) {
   // 3. Enviar APK como documento executável do Android
   const caption = 
     `📲 *Chácara Inventário — Versão v${apkInfo.version}*\n\n` +
-    `✨ *Novidade: Inteligência Artificial (Gemini Vision)*\n` +
-    `• Reconhecimento automático de objetos por foto\n` +
-    `• Sugestão inteligente de nome comercial e categoria\n` +
-    `• Classificação em lote na inserção de fotos pendentes\n` +
-    `• Botão "Identificar com IA" no cadastro individual\n\n` +
+    `✨ *Novidade: Agenda 100% Unificada (Chácara & Serviços Particulares)*\n` +
+    `• Zero separação de agendas: tarefas da chácara e serviços do dia a dia no mesmo calendário!\n` +
+    `• Faxineira e Piscineiro podem criar seus serviços particulares com data, horários, cliente e valor (R$)\n` +
+    `• Ações rápidas de contato: WhatsApp com mensagem pronta, Como Chegar (Google Maps) e Ligar direto\n` +
+    `• Visual sênior intuitivo: botões grandes, contraste nítido e badges coloridas por categoria\n\n` +
     `📦 Arquivo: \`${apkInfo.fileName}\` (${sizeMb} MB)\n\n` +
-    `⚠️ *PASSO OBRIGATÓRIO NESTA ATUALIZAÇÃO:*\n` +
-    `Como configuramos uma chave de segurança permanente definitiva:\n` +
-    `1. *Desinstale* o aplicativo "Chácara Inventário" atual do celular (fique tranquilo: todos os itens e fotos estão salvos na nuvem no Supabase!).\n` +
-    `2. Baixe o arquivo APK acima e toque nele para *Instalar*.\n` +
-    `3. A partir desta versão, todas as próximas atualizações atualizarão direto sem precisar desinstalar nunca mais! 🎉\n\n` +
+    `👉 Toque no arquivo acima para instalar a nova versão!\n\n` +
     `_Enviado automaticamente pelo Baileys Updater._`;
 
   await sock.sendMessage(jid, {
