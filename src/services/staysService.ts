@@ -14,7 +14,15 @@ import {
 } from '../types/stay';
 import { getOrCreateActiveChecklistSession, StayLinkInfo } from './checklistService';
 
-const LS_CACHED_STAYS_KEY = 'chacara_cached_stays_v1';
+const LS_LEGACY_CACHED_STAYS_KEY = 'chacara_cached_stays_v1';
+const LS_CACHED_STAYS_KEY = 'chacara_cached_stays_v2';
+
+function clearLegacyStaysCache(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(LS_LEGACY_CACHED_STAYS_KEY);
+  } catch {}
+}
 
 // Helper: Local YYYY-MM-DD (avoids late-evening UTC date rollover in Brazil)
 export function getLocalTodayDateStr(): string {
@@ -162,9 +170,10 @@ export async function fetchStays(): Promise<Stay[]> {
         };
       });
 
-      // Save offline cache
+      // Save offline cache and purge legacy cache key
       if (typeof window !== 'undefined') {
         try {
+          clearLegacyStaysCache();
           localStorage.setItem(LS_CACHED_STAYS_KEY, JSON.stringify(stays));
         } catch {}
       }
@@ -180,9 +189,10 @@ export async function fetchStays(): Promise<Stay[]> {
 }
 
 /**
- * Returns cached stays from localStorage or fallback demo list
+ * Returns cached real stays from localStorage (never mock/demo data)
  */
 function getCachedStaysFallback(): Stay[] {
+  clearLegacyStaysCache();
   if (typeof window !== 'undefined') {
     try {
       const cached = localStorage.getItem(LS_CACHED_STAYS_KEY);
