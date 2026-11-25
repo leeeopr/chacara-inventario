@@ -11,7 +11,13 @@ const LS_AUTH_PROFILE_KEY = 'chacara_auth_profile_v1';
 
 function inferRoleFromEmailOrMeta(user: User): UserRole {
   const email = (user.email || '').trim().toLowerCase();
-  if (email === 'lpr1000lpr07@gmail.com' || email === 'admin@chacara.com' || email.includes('admin')) {
+  if (
+    email === 'lpr1000lpr07@gmail.com' ||
+    email === 'leoperib1000@gmail.com' ||
+    email === 'leo@gmail.com' ||
+    email === 'admin@chacara.com' ||
+    email.includes('admin')
+  ) {
     return 'admin';
   }
   if (email === 'piscineiro@chacara.com' || email.includes('piscin')) {
