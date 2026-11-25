@@ -31,7 +31,6 @@ interface SeniorChecklistMainProps {
   userProfile?: AppUserProfile | null;
   onLogout?: () => void;
   onOpenStaysCalendar?: () => void;
-  onOpenPersonalAgenda?: () => void;
   onOpenPreChecklist?: () => void;
   onSelectRoom: (room: Room) => void;
   onOpenAdminMenu: () => void;
@@ -51,7 +50,6 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
   userProfile = null,
   onLogout,
   onOpenStaysCalendar,
-  onOpenPersonalAgenda,
   onOpenPreChecklist,
   onSelectRoom,
   onOpenAdminMenu,
@@ -226,7 +224,7 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
           </div>
         )}
 
-        {/* Stays & Calendar Quick Card */}
+        {/* Unified Stays & Services Calendar Quick Card */}
         {onOpenStaysCalendar && (
           <div
             onClick={onOpenStaysCalendar}
@@ -235,13 +233,13 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
             className="p-4 sm:p-5 rounded-3xl bg-slate-900 hover:bg-slate-850 border-2 border-indigo-500/40 hover:border-indigo-400 shadow-xl cursor-pointer transition-all active:scale-[0.99] flex flex-col sm:flex-row items-center justify-between gap-4"
           >
             <div className="flex items-center gap-3.5 w-full sm:w-auto">
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 border-2 border-indigo-400 shadow-lg shadow-indigo-600/30">
+              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center shrink-0 border-2 border-indigo-400 shadow-lg shadow-indigo-600/30">
                 <Calendar className="w-7 h-7 stroke-[2.5]" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-lg sm:text-xl font-black text-white">
-                    Estadias, Checklists &amp; Faxinas
+                    Agenda Geral: Chácara &amp; Serviços
                   </h2>
                   {typeof pendingStaysCount === 'number' && pendingStaysCount > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-xs font-black uppercase tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/40">
@@ -253,53 +251,19 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
                       {pendingCleaningCount} {pendingCleaningCount === 1 ? 'faxina pend.' : 'faxinas pend.'}
                     </span>
                   )}
-                </div>
-                <p className="text-xs sm:text-sm font-semibold text-slate-300 mt-0.5">
-                  {(pendingStaysCount || 0) + (pendingCleaningCount || 0) > 0
-                    ? 'Veja saídas de hóspedes com checklists e faxinas pós-estadia pendentes'
-                    : 'Acompanhe check-outs, checklists de saída e calendário de faxinas'}
-                </p>
-              </div>
-            </div>
-
-            <div className="w-full sm:w-auto flex justify-end shrink-0">
-              <span className="w-full sm:w-auto text-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs sm:text-sm shadow-md transition-all">
-                Ver Estadias ›
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Minha Agenda Pessoal (Serviços Particulares do Dia a Dia) */}
-        {onOpenPersonalAgenda && (
-          <div
-            onClick={onOpenPersonalAgenda}
-            role="button"
-            tabIndex={0}
-            className="p-4 sm:p-5 rounded-3xl bg-slate-900 hover:bg-slate-850 border-2 border-purple-500/40 hover:border-purple-400 shadow-xl cursor-pointer transition-all active:scale-[0.99] flex flex-col sm:flex-row items-center justify-between gap-4"
-          >
-            <div className="flex items-center gap-3.5 w-full sm:w-auto">
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-purple-600 text-white flex items-center justify-center shrink-0 border-2 border-purple-400 shadow-lg shadow-purple-600/30">
-                <Calendar className="w-7 h-7 stroke-[2.5]" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-lg sm:text-xl font-black text-white">
-                    Minha Agenda Pessoal
-                  </h2>
                   <span className="px-2 py-0.5 rounded-full text-xs font-black uppercase tracking-wide bg-purple-500/25 text-purple-200 border border-purple-400/50">
-                    {userProfile?.role === 'faxineira' ? 'Faxinas Particulares' : 'Meus Clientes'}
+                    Estadias + Particulares
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm font-semibold text-slate-300 mt-0.5">
-                  Organize seus serviços externos, horários, clientes e valores estilo Google Calendar.
+                  Acompanhe saídas da chácara, vistorias e crie seus serviços particulares no mesmo calendário.
                 </p>
               </div>
             </div>
 
             <div className="w-full sm:w-auto flex justify-end shrink-0">
-              <span className="w-full sm:w-auto text-center px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs sm:text-sm shadow-md transition-all">
-                Abrir Agenda ›
+              <span className="w-full sm:w-auto text-center px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black text-xs sm:text-sm shadow-md transition-all">
+                Abrir Agenda Geral ›
               </span>
             </div>
           </div>

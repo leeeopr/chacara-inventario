@@ -43,7 +43,6 @@ interface DiscreetAdminDrawerProps {
   onOpenOtaSettings?: () => void;
   onOpenVisualScale?: () => void;
   onOpenPreChecklistConfig?: () => void;
-  onOpenPersonalAgenda?: () => void;
 }
 
 export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
@@ -66,7 +65,6 @@ export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
   onOpenOtaSettings,
   onOpenVisualScale,
   onOpenPreChecklistConfig,
-  onOpenPersonalAgenda,
 }) => {
   if (!isOpen) return null;
 
@@ -136,44 +134,17 @@ export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
                   onClose();
                   onOpenStaysCalendar();
                 }}
-                className="w-full p-3.5 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 flex items-center gap-3 text-left transition-colors cursor-pointer"
+                className="w-full p-3.5 rounded-2xl bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/40 flex items-center gap-3 text-left transition-colors cursor-pointer"
               >
-                <div className="w-9 h-9 rounded-xl bg-amber-500/30 text-amber-300 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/40 to-purple-500/40 text-indigo-300 flex items-center justify-center shrink-0">
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="block text-sm font-extrabold text-amber-200">
-                    Estadias, Checklists &amp; Faxinas
+                  <span className="block text-sm font-extrabold text-white">
+                    Agenda Geral (Chácara &amp; Serviços)
                   </span>
-                  <span className="block text-xs text-amber-300/80">
-                    Ver saídas, vistorias e faxinas pendentes
-                  </span>
-                </div>
-              </button>
-            )}
-
-            {onOpenPersonalAgenda && (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenPersonalAgenda();
-                }}
-                className="w-full p-3.5 rounded-2xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/40 flex items-center gap-3 text-left transition-colors cursor-pointer"
-              >
-                <div className="w-9 h-9 rounded-xl bg-purple-500/30 text-purple-300 flex items-center justify-center shrink-0">
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="block text-sm font-extrabold text-purple-200">
-                    Minha Agenda Pessoal
-                  </span>
-                  <span className="block text-xs text-purple-300/80">
-                    {userProfile?.role === 'faxineira'
-                      ? 'Serviços de faxina particulares e horários'
-                      : userProfile?.role === 'piscineiro'
-                      ? 'Manutenções particulares e clientes'
-                      : 'Compromissos e clientes do dia a dia'}
+                  <span className="block text-xs text-indigo-300/80">
+                    Estadias da chácara e serviços particulares no mesmo calendário
                   </span>
                 </div>
               </button>
