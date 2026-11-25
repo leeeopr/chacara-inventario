@@ -51,6 +51,7 @@ import { AuthLoginScreen } from './components/AuthLoginScreen';
 import { OtaSettingsModal } from './components/OtaSettingsModal';
 import { OtaUpdateModal } from './components/OtaUpdateModal';
 import { PiscineiroDashboard } from './components/PiscineiroDashboard';
+import { PersonalServicesCalendarModal } from './components/PersonalServicesCalendarModal';
 import { QuickRoomInspection } from './components/QuickRoomInspection';
 import { RoomCategoryManagementModal } from './components/RoomCategoryManagementModal';
 import { RoomManagementModal } from './components/RoomManagementModal';
@@ -166,6 +167,7 @@ export function App() {
 
   // Stays & Calendar State
   const [isStaysCalendarOpen, setIsStaysCalendarOpen] = useState(false);
+  const [isPersonalAgendaOpen, setIsPersonalAgendaOpen] = useState(false);
   const [pendingStaysCount, setPendingStaysCount] = useState(0);
   const [pendingCleaningCount, setPendingCleaningCount] = useState(0);
 
@@ -237,6 +239,10 @@ export function App() {
       }
       if (isHistoryModalOpen) {
         setIsHistoryModalOpen(false);
+        return true;
+      }
+      if (isPersonalAgendaOpen) {
+        setIsPersonalAgendaOpen(false);
         return true;
       }
       if (isStaysCalendarOpen) {
@@ -1842,6 +1848,7 @@ export function App() {
         userProfile={authProfile}
         onLogout={handleLogout}
         onOpenStaysCalendar={() => setIsStaysCalendarOpen(true)}
+        onOpenPersonalAgenda={() => setIsPersonalAgendaOpen(true)}
         onOpenPreChecklist={() => setIsPreChecklistExecutionOpen(true)}
         onSelectRoom={(room) => {
           setActiveRoom(room);
@@ -1875,6 +1882,7 @@ export function App() {
         onOpenPreChecklistConfig={() => setIsPreChecklistConfigOpen(true)}
         onOpenHistory={() => setIsHistoryModalOpen(true)}
         onOpenStaysCalendar={() => setIsStaysCalendarOpen(true)}
+        onOpenPersonalAgenda={() => setIsPersonalAgendaOpen(true)}
         onOpenVisualScale={() => setIsVisualScaleModalOpen(true)}
         onStartNewInspection={handleStartNewInspection}
         onOpenOtaSettings={() => setIsOtaSettingsModalOpen(true)}
@@ -1889,7 +1897,18 @@ export function App() {
         userRole={authProfile.role}
         userName={authProfile.full_name}
         onStaysUpdated={refreshStaysCounts}
+        onOpenPersonalAgenda={() => setIsPersonalAgendaOpen(true)}
       />
+
+      {/* Personal Services Calendar Modal (Google Calendar style) */}
+      {authProfile && (
+        <PersonalServicesCalendarModal
+          isOpen={isPersonalAgendaOpen}
+          onClose={() => setIsPersonalAgendaOpen(false)}
+          userProfile={authProfile}
+          onToast={showToast}
+        />
+      )}
 
       {/* Floor Plan (Planta da Chácara) Modal */}
       <FloorPlanModal

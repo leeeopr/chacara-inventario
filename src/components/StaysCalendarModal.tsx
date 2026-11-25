@@ -51,6 +51,7 @@ interface StaysCalendarModalProps {
   userRole?: UserRole;
   userName?: string;
   onStaysUpdated?: () => void;
+  onOpenPersonalAgenda?: () => void;
 }
 
 export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
@@ -61,6 +62,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
   userRole = 'admin',
   userName = 'Proprietário',
   onStaysUpdated,
+  onOpenPersonalAgenda,
 }) => {
   const [stays, setStays] = useState<Stay[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -399,6 +401,20 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onOpenPersonalAgenda && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenPersonalAgenda();
+                }}
+                className="px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                title="Abrir minha agenda pessoal de clientes"
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Minha Agenda Pessoal</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={loadStays}

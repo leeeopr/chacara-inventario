@@ -29,6 +29,7 @@ import {
 } from '../services/staysService';
 import { AppUserProfile } from '../types/auth';
 import { Stay, StayPoolStatus } from '../types/stay';
+import { PersonalServicesCalendarModal } from './PersonalServicesCalendarModal';
 
 interface PiscineiroDashboardProps {
   userProfile: AppUserProfile;
@@ -36,6 +37,7 @@ interface PiscineiroDashboardProps {
   onOpenAccessibility?: () => void;
   onBackToAdmin?: () => void;
   onToast?: (msg: string) => void;
+  onOpenPersonalAgenda?: () => void;
 }
 
 function getPoolUrgencyMeta(stay: Stay, today: string): {
@@ -102,6 +104,7 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
   const [updatingStayId, setUpdatingStayId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<'pending' | 'calendar' | 'completed' | 'all'>('pending');
+  const [isPersonalAgendaOpen, setIsPersonalAgendaOpen] = useState(false);
 
   // Calendar Month Navigation
   const [currentDate, setCurrentDate] = useState(() => new Date());
@@ -266,6 +269,16 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
+              onClick={() => setIsPersonalAgendaOpen(true)}
+              title="Abrir minha agenda de clientes particulares"
+              className="px-3 h-11 rounded-2xl bg-indigo-500/20 hover:bg-indigo-500/30 border-2 border-indigo-500/40 flex items-center gap-1.5 text-indigo-300 font-black text-xs cursor-pointer shadow-sm active:scale-95"
+            >
+              <CalendarIcon className="w-4 h-4 stroke-[2.5]" />
+              <span className="hidden sm:inline">Minha Agenda Pessoal</span>
+            </button>
+
+            <button
+              type="button"
               onClick={loadStays}
               disabled={isLoading}
               title="Atualizar estadias"
@@ -299,6 +312,39 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
       </header>
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-5">
+        {/* Minha Agenda Pessoal (Serviços e Clientes Externos) */}
+        <div
+          onClick={() => setIsPersonalAgendaOpen(true)}
+          role="button"
+          tabIndex={0}
+          className="p-4 sm:p-5 rounded-3xl bg-slate-900 hover:bg-slate-850 border-2 border-indigo-500/40 hover:border-indigo-400 shadow-xl cursor-pointer transition-all active:scale-[0.99] flex flex-col sm:flex-row items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-3.5 w-full sm:w-auto">
+            <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 border-2 border-indigo-400 shadow-lg shadow-indigo-600/30">
+              <CalendarIcon className="w-7 h-7 stroke-[2.5]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg sm:text-xl font-black text-white">
+                  Minha Agenda Pessoal &amp; Clientes
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-xs font-black uppercase tracking-wide bg-indigo-500/25 text-indigo-200 border border-indigo-400/50">
+                  Google Calendar Style
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm font-semibold text-slate-300 mt-0.5">
+                Organize suas manutenções de piscinas particulares, horários, clientes e orçamentos do dia a dia.
+              </p>
+            </div>
+          </div>
+
+          <div className="w-full sm:w-auto flex justify-end shrink-0">
+            <span className="w-full sm:w-auto text-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs sm:text-sm shadow-md transition-all">
+              Abrir Minha Agenda ›
+            </span>
+          </div>
+        </div>
+
         {/* Metrics Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <button
@@ -755,6 +801,14 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
           </div>
         )}
       </main>
+
+      {/* Modal da Minha Agenda Pessoal */}
+      <PersonalServicesCalendarModal
+        isOpen={isPersonalAgendaOpen}
+        onClose={() => setIsPersonalAgendaOpen(false)}
+        userProfile={userProfile}
+        onToast={onToast}
+      />
     </div>
   );
 };

@@ -43,6 +43,7 @@ interface DiscreetAdminDrawerProps {
   onOpenOtaSettings?: () => void;
   onOpenVisualScale?: () => void;
   onOpenPreChecklistConfig?: () => void;
+  onOpenPersonalAgenda?: () => void;
 }
 
 export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
@@ -65,6 +66,7 @@ export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
   onOpenOtaSettings,
   onOpenVisualScale,
   onOpenPreChecklistConfig,
+  onOpenPersonalAgenda,
 }) => {
   if (!isOpen) return null;
 
@@ -145,6 +147,33 @@ export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
                   </span>
                   <span className="block text-xs text-amber-300/80">
                     Ver saídas, vistorias e faxinas pendentes
+                  </span>
+                </div>
+              </button>
+            )}
+
+            {onOpenPersonalAgenda && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenPersonalAgenda();
+                }}
+                className="w-full p-3.5 rounded-2xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/40 flex items-center gap-3 text-left transition-colors cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-purple-500/30 text-purple-300 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="block text-sm font-extrabold text-purple-200">
+                    Minha Agenda Pessoal
+                  </span>
+                  <span className="block text-xs text-purple-300/80">
+                    {userProfile?.role === 'faxineira'
+                      ? 'Serviços de faxina particulares e horários'
+                      : userProfile?.role === 'piscineiro'
+                      ? 'Manutenções particulares e clientes'
+                      : 'Compromissos e clientes do dia a dia'}
                   </span>
                 </div>
               </button>
