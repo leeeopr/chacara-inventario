@@ -908,23 +908,10 @@ export function App() {
         <AuthLoginScreen
           onLoginSuccess={handleLoginSuccess}
           onOpenAccessibility={() => setIsVisualScaleModalOpen(true)}
-          onOpenSupabaseConfig={() => setIsSupabaseModalOpen(true)}
         />
         <VisualAccessibilityModal
           isOpen={isVisualScaleModalOpen}
           onClose={() => setIsVisualScaleModalOpen(false)}
-        />
-        <SupabaseConfigModal
-          isOpen={isSupabaseModalOpen}
-          onClose={() => setIsSupabaseModalOpen(false)}
-          onConfigUpdated={async () => {
-            await loadAllData();
-            const restored = await getCurrentUserProfile();
-            if (restored) {
-              setAuthProfile(restored);
-              setAppScreen(restored.role === 'piscineiro' ? 'piscineiro_view' : 'checklist_main');
-            }
-          }}
         />
         {toastNotification}
       </>
@@ -1880,7 +1867,11 @@ export function App() {
         onOpenRoomOrder={() => setIsRoomOrderModalOpen(true)}
         onOpenCategories={() => setIsCategoriesModalOpen(true)}
         onOpenPrefixes={() => setIsPrefixesModalOpen(true)}
-        onOpenSupabase={() => setIsSupabaseModalOpen(true)}
+        onOpenSupabase={() => {
+          if (authProfile.role === 'admin') {
+            setIsSupabaseModalOpen(true);
+          }
+        }}
         onOpenPreChecklistConfig={() => setIsPreChecklistConfigOpen(true)}
         onOpenHistory={() => setIsHistoryModalOpen(true)}
         onOpenStaysCalendar={() => setIsStaysCalendarOpen(true)}
@@ -1980,12 +1971,14 @@ export function App() {
         onClose={() => setIsPrefixesModalOpen(false)}
       />
 
-      {/* Supabase Connection & SQL Migration Modal */}
-      <SupabaseConfigModal
-        isOpen={isSupabaseModalOpen}
-        onClose={() => setIsSupabaseModalOpen(false)}
-        onConfigUpdated={loadAllData}
-      />
+      {/* Supabase Connection & SQL Migration Modal (Proprietário / Admin only) */}
+      {authProfile.role === 'admin' && (
+        <SupabaseConfigModal
+          isOpen={isSupabaseModalOpen}
+          onClose={() => setIsSupabaseModalOpen(false)}
+          onConfigUpdated={loadAllData}
+        />
+      )}
 
       {/* OTA Update Prompt Modal */}
       <OtaUpdateModal

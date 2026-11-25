@@ -68,7 +68,7 @@ export const DiscreetAdminDrawer: React.FC<DiscreetAdminDrawerProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const isAdmin = !userProfile || userProfile.role === 'admin';
+  const isAdmin = userProfile?.role === 'admin';
 
   return (
     <div className="fixed inset-0 z-[80] flex justify-end bg-black/80 backdrop-blur-sm animate-fadeIn">

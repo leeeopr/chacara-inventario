@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   AlertCircle,
-  Database,
   Eye,
   EyeOff,
   Loader2,
@@ -16,13 +15,11 @@ import { AppUserProfile } from '../types/auth';
 interface AuthLoginScreenProps {
   onLoginSuccess: (profile: AppUserProfile) => void;
   onOpenAccessibility?: () => void;
-  onOpenSupabaseConfig?: () => void;
 }
 
 export const AuthLoginScreen: React.FC<AuthLoginScreenProps> = ({
   onLoginSuccess,
   onOpenAccessibility,
-  onOpenSupabaseConfig,
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -143,8 +140,8 @@ export const AuthLoginScreen: React.FC<AuthLoginScreenProps> = ({
         </div>
 
         {/* Discreet Utility Footer */}
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-          {onOpenAccessibility && (
+        {onOpenAccessibility && (
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <button
               type="button"
               onClick={onOpenAccessibility}
@@ -153,19 +150,8 @@ export const AuthLoginScreen: React.FC<AuthLoginScreenProps> = ({
               <Sliders className="w-4 h-4" />
               <span>Tamanho da Fonte / Tela</span>
             </button>
-          )}
-
-          {onOpenSupabaseConfig && (
-            <button
-              type="button"
-              onClick={onOpenSupabaseConfig}
-              className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white flex items-center gap-2 cursor-pointer"
-            >
-              <Database className="w-4 h-4" />
-              <span>Conexão Supabase</span>
-            </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
