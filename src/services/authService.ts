@@ -10,14 +10,20 @@ import { AppUserProfile, UserRole } from '../types/auth';
 const LS_AUTH_PROFILE_KEY = 'chacara_auth_profile_v1';
 
 function inferRoleFromEmailOrMeta(user: User): UserRole {
+  const email = (user.email || '').trim().toLowerCase();
+  if (email === 'lpr1000lpr07@gmail.com' || email === 'admin@chacara.com' || email.includes('admin')) {
+    return 'admin';
+  }
+  if (email === 'piscineiro@chacara.com' || email.includes('piscin')) {
+    return 'piscineiro';
+  }
+  if (email === 'faxineira@chacara.com' || email.includes('faxin')) {
+    return 'faxineira';
+  }
   const metaRole = user.user_metadata?.role;
   if (metaRole === 'admin' || metaRole === 'faxineira' || metaRole === 'piscineiro') {
     return metaRole;
   }
-  const email = (user.email || '').toLowerCase();
-  if (email.includes('piscin')) return 'piscineiro';
-  if (email.includes('faxin')) return 'faxineira';
-  if (email.includes('admin') || email === 'lpr1000lpr07@gmail.com') return 'admin';
   return 'faxineira';
 }
 
