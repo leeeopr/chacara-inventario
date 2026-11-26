@@ -359,6 +359,16 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
     }
   };
 
+  const presetTitles = useMemo(() => {
+    if (userRole === 'piscineiro') {
+      return ['Limpeza & Aspiração', 'Tratamento com Cloro', 'Troca de Areia', 'Manutenção Bomba', 'Outro Serviço'];
+    }
+    if (userRole === 'faxineira') {
+      return ['Faxina', 'Faxina Pesada', 'Passadoria', 'Diarista', 'Outro Serviço'];
+    }
+    return ['Faxina', 'Limpeza Piscina', 'Manutenção Geral', 'Outro Serviço'];
+  }, [userRole]);
+
   // --- Personal Services Actions ---
   const handleOpenNewForm = (presetDate?: string, presetHour?: string) => {
     setEditingService(null);
@@ -368,13 +378,12 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
     const endHourNum = Math.min(h + 3, 23);
     const endHour = `${String(endHourNum).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
 
-    const defaultCat = categories[0]?.id || 'geral';
     setFormTitle(
       userRole === 'faxineira'
-        ? 'Faxina Residencial'
+        ? 'Faxina'
         : userRole === 'piscineiro'
         ? 'Limpeza de Piscina'
-        : 'Serviço Particular'
+        : 'Serviço'
     );
     setFormClientName('');
     setFormClientPhone('');
@@ -382,7 +391,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
     setFormDate(dateVal);
     setFormStartTime(startHour);
     setFormEndTime(endHour);
-    setFormCategory(defaultCat);
+    setFormCategory('geral');
     setFormPrice('');
     setFormNotes('');
     setIsFormOpen(true);
@@ -397,8 +406,8 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
     setFormDate(srv.service_date);
     setFormStartTime(srv.start_time ? srv.start_time.slice(0, 5) : '08:00');
     setFormEndTime(srv.end_time ? srv.end_time.slice(0, 5) : '12:00');
-    setFormCategory(srv.category || categories[0]?.id || 'geral');
-    setFormPrice(srv.price !== null && srv.price !== undefined ? String(srv.price) : '');
+    setFormCategory(srv.category || 'geral');
+    setFormPrice('');
     setFormNotes(srv.notes || '');
     setIsFormOpen(true);
   };
@@ -415,8 +424,6 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
     }
 
     setIsSaving(true);
-    const categoryMeta = getCategoryMeta(formCategory, userRole);
-    const priceNum = formPrice.trim() ? parseFloat(formPrice.replace(',', '.')) : null;
 
     try {
       if (editingService) {
@@ -430,9 +437,8 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
             service_date: formDate,
             start_time: formStartTime,
             end_time: formEndTime,
-            category: formCategory,
-            color: categoryMeta.color,
-            price: priceNum !== null && !isNaN(priceNum) ? priceNum : null,
+            category: formCategory || 'geral',
+            price: null,
             notes: formNotes.trim() || null,
           },
           userEmail || 'default@chacara.com'
@@ -451,9 +457,9 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
           service_date: formDate,
           start_time: formStartTime,
           end_time: formEndTime,
-          category: formCategory,
-          color: categoryMeta.color,
-          price: priceNum !== null && !isNaN(priceNum) ? priceNum : null,
+          category: formCategory || 'geral',
+          color: '#8b5cf6',
+          price: null,
           status: 'scheduled',
           notes: formNotes.trim() || null,
         });
@@ -1481,11 +1487,6 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {srv.price !== null && srv.price !== undefined && (
-                        <span className="px-2.5 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-mono font-black text-xs">
-                          {formatCurrencyBRL(srv.price)}
-                        </span>
-                      )}
                       <button
                         type="button"
                         onClick={() => handleTogglePersonalStatus(srv)}
@@ -1630,101 +1631,48 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveForm} className="p-5 overflow-y-auto space-y-4 text-xs">
-              {/* Category selector */}
+            <form onSubmit={handleSaveForm} className="p-5 overflow-y-auto space-y-4 text-xs sm:text-sm">
+              {/* 1. Serviço / Título com sugestões rápidas */}
               <div>
-                <label className="block font-bold text-slate-400 mb-1.5">
-                  Tipo de Serviço
-                </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => {
-                        setFormCategory(cat.id);
-                        if (!editingService && formTitle.trim().length === 0) {
-                          setFormTitle(cat.label);
-                        }
-                      }}
-                      className={`p-2 rounded-xl border text-left font-bold transition-all cursor-pointer flex items-center gap-2 ${
-                        formCategory === cat.id
-                          ? `${cat.bgClass} ${cat.textClass} ${cat.borderClass} ring-1 ring-purple-400`
-                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: cat.color }}
-                      />
-                      <span className="truncate">{cat.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Title */}
-              <div>
-                <label className="block font-bold text-slate-300 mb-1">
-                  Título do Serviço *
+                <label className="block font-bold text-slate-200 mb-1">
+                  Qual é o serviço? *
                 </label>
                 <input
                   type="text"
                   required
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="Ex: Faxina Casa D. Maria, Limpeza Piscina..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
+                  placeholder="Ex: Faxina, Limpeza de Piscina..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
                 />
-              </div>
-
-              {/* Client Name & Phone */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-300 mb-1">Nome do Cliente</label>
-                  <input
-                    type="text"
-                    value={formClientName}
-                    onChange={(e) => setFormClientName(e.target.value)}
-                    placeholder="Ex: Carlos Oliveira"
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-300 mb-1">WhatsApp / Telefone</label>
-                  <input
-                    type="tel"
-                    value={formClientPhone}
-                    onChange={(e) => setFormClientPhone(e.target.value)}
-                    placeholder="Ex: (11) 98765-4321"
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
-                  />
+                {/* Sugestões rápidas de 1 clique */}
+                <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                  {presetTitles.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setFormTitle(preset)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        formTitle === preset
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Address */}
+              {/* 2. Data com botões Hoje e Amanhã */}
               <div>
-                <label className="block font-bold text-slate-300 mb-1">
-                  Endereço / Local do Serviço
-                </label>
-                <input
-                  type="text"
-                  value={formAddress}
-                  onChange={(e) => setFormAddress(e.target.value)}
-                  placeholder="Ex: Rua das Flores, 120"
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
-                />
-              </div>
-
-              {/* Date */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-bold text-slate-300">Data do Serviço *</label>
-                  <div className="flex items-center gap-1">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="font-bold text-slate-200">Data do Serviço *</label>
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setFormDate(todayStr)}
-                      className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold"
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
                     >
                       Hoje
                     </button>
@@ -1735,7 +1683,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                         tomorrow.setDate(tomorrow.getDate() + 1);
                         setFormDate(tomorrow.toISOString().slice(0, 10));
                       }}
-                      className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold"
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
                     >
                       Amanhã
                     </button>
@@ -1746,56 +1694,66 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                   required
                   value={formDate}
                   onChange={(e) => setFormDate(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
                 />
               </div>
 
-              {/* Times */}
+              {/* 3. Horários: Início e Término */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-300 mb-1">Início</label>
+                  <label className="block font-bold text-slate-200 mb-1">Horário de Início *</label>
                   <input
                     type="time"
+                    required
                     value={formStartTime}
                     onChange={(e) => setFormStartTime(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-300 mb-1">Término</label>
+                  <label className="block font-bold text-slate-200 mb-1">Horário de Término</label>
                   <input
                     type="time"
                     value={formEndTime}
                     onChange={(e) => setFormEndTime(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
                   />
                 </div>
               </div>
 
-              {/* Price */}
-              <div>
-                <label className="block font-bold text-slate-300 mb-1">Valor Cobrado (R$)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2 font-bold text-slate-500">R$</span>
+              {/* 4. Cliente ou Local (opcional) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">Cliente ou Local (opcional)</label>
                   <input
                     type="text"
-                    value={formPrice}
-                    onChange={(e) => setFormPrice(e.target.value)}
-                    placeholder="Ex: 180,00"
-                    className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
+                    value={formClientName}
+                    onChange={(e) => setFormClientName(e.target.value)}
+                    placeholder="Ex: D. Maria, Sítio..."
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">WhatsApp / Telefone (opcional)</label>
+                  <input
+                    type="tel"
+                    value={formClientPhone}
+                    onChange={(e) => setFormClientPhone(e.target.value)}
+                    placeholder="Ex: (11) 99999-9999"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
                   />
                 </div>
               </div>
 
-              {/* Notes */}
+              {/* Endereço (opcional) */}
               <div>
-                <label className="block font-bold text-slate-300 mb-1">Observações</label>
-                <textarea
-                  rows={2}
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                  placeholder="Detalhes do serviço, chaves, produtos a levar..."
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs resize-none"
+                <label className="block font-bold text-slate-300 mb-1">Endereço (opcional)</label>
+                <input
+                  type="text"
+                  value={formAddress}
+                  onChange={(e) => setFormAddress(e.target.value)}
+                  placeholder="Ex: Rua das Flores, 120"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
                 />
               </div>
 
@@ -1804,14 +1762,14 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black flex items-center gap-1.5 shadow-lg shadow-purple-600/25 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black flex items-center gap-1.5 shadow-lg shadow-purple-600/25 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
                 >
                   {isSaving ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />

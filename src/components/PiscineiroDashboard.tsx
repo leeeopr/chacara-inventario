@@ -328,9 +328,6 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
 
     setIsSaving(true);
     try {
-      const cleanPrice = formPrice.trim()
-        ? parseFloat(formPrice.replace(/\./g, '').replace(',', '.'))
-        : null;
       const userEmail = userProfile.email || 'piscineiro@chacara.com';
       const categoryMeta = getCategoryMeta(formCategory, 'piscineiro');
 
@@ -345,9 +342,9 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
             service_date: formDate,
             start_time: formStartTime || null,
             end_time: formEndTime || null,
-            category: formCategory,
+            category: formCategory || 'limpeza_simples',
             color: categoryMeta.color,
-            price: isNaN(cleanPrice as number) ? null : cleanPrice,
+            price: null,
             notes: formNotes.trim() || null,
           },
           userEmail
@@ -370,9 +367,9 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
           service_date: formDate,
           start_time: formStartTime || null,
           end_time: formEndTime || null,
-          category: formCategory,
+          category: formCategory || 'limpeza_simples',
           color: categoryMeta.color,
-          price: isNaN(cleanPrice as number) ? null : cleanPrice,
+          price: null,
           status: 'scheduled',
           notes: formNotes.trim() || null,
         });
@@ -1296,14 +1293,6 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
                         </p>
                       )}
                     </div>
-
-                    {srv.price !== null && srv.price !== undefined && (
-                      <div className="text-right shrink-0">
-                        <span className="px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-mono font-black text-sm">
-                          {formatCurrencyBRL(srv.price)}
-                        </span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Address */}
@@ -1443,48 +1432,28 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
 
             {/* Form Body */}
             <form onSubmit={handleSavePersonalService} className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs sm:text-sm">
-              {/* Category selector */}
+              {/* 1. Serviço com sugestões de 1 clique */}
               <div>
-                <label className="block font-bold text-slate-300 mb-1.5">Categoria do Serviço</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                  {PISCINEIRO_CATEGORIES.map((cat) => {
-                    const isSelected = formCategory === cat.id;
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => setFormCategory(cat.id)}
-                        className={`p-2 rounded-xl text-left border text-xs font-bold transition-all ${
-                          isSelected
-                            ? 'bg-purple-600 text-white border-purple-400 ring-2 ring-purple-400/30'
-                            : `${cat.bgClass} ${cat.textClass} ${cat.borderClass} hover:opacity-100 opacity-70`
-                        }`}
-                      >
-                        {cat.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Title with quick suggestions */}
-              <div>
-                <label className="block font-bold text-slate-300 mb-1">Título do Serviço *</label>
+                <label className="block font-bold text-slate-200 mb-1">Qual é o serviço? *</label>
                 <input
                   type="text"
                   required
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="Ex: Limpeza Residencial, Troca de Areia..."
+                  placeholder="Ex: Limpeza de Piscina, Troca de Areia..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
                 />
-                <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap mt-2">
                   {PRESET_PISCINEIRO_TITLES.map((preset) => (
                     <button
                       key={preset}
                       type="button"
                       onClick={() => setFormTitle(preset)}
-                      className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold"
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        formTitle === preset
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                      }`}
                     >
                       {preset}
                     </button>
@@ -1492,51 +1461,15 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Client Name & Phone */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-300 mb-1">Nome do Cliente</label>
-                  <input
-                    type="text"
-                    value={formClientName}
-                    onChange={(e) => setFormClientName(e.target.value)}
-                    placeholder="Ex: Dr. Marcelo, Sítio São José"
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-300 mb-1">Telefone / WhatsApp</label>
-                  <input
-                    type="tel"
-                    value={formClientPhone}
-                    onChange={(e) => setFormClientPhone(e.target.value)}
-                    placeholder="Ex: (11) 99999-9999"
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Address */}
+              {/* 2. Data com botões Hoje e Amanhã */}
               <div>
-                <label className="block font-bold text-slate-300 mb-1">Endereço / Localização</label>
-                <input
-                  type="text"
-                  value={formAddress}
-                  onChange={(e) => setFormAddress(e.target.value)}
-                  placeholder="Ex: Rua das Flores, 123 ou Condomínio Portal do Sol"
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
-                />
-              </div>
-
-              {/* Date with quick presets */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-bold text-slate-300">Data do Serviço *</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="font-bold text-slate-200">Data do Serviço *</label>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setFormDate(todayStr)}
-                      className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold"
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
                     >
                       Hoje
                     </button>
@@ -1547,7 +1480,7 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
                         tomorrow.setDate(tomorrow.getDate() + 1);
                         setFormDate(tomorrow.toISOString().slice(0, 10));
                       }}
-                      className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold"
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
                     >
                       Amanhã
                     </button>
@@ -1558,56 +1491,66 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
                   required
                   value={formDate}
                   onChange={(e) => setFormDate(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
                 />
               </div>
 
-              {/* Times */}
+              {/* 3. Horários: Início e Término */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-300 mb-1">Horário Início</label>
+                  <label className="block font-bold text-slate-200 mb-1">Horário Início *</label>
                   <input
                     type="time"
+                    required
                     value={formStartTime}
                     onChange={(e) => setFormStartTime(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-300 mb-1">Horário Término</label>
+                  <label className="block font-bold text-slate-200 mb-1">Horário Término</label>
                   <input
                     type="time"
                     value={formEndTime}
                     onChange={(e) => setFormEndTime(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
                   />
                 </div>
               </div>
 
-              {/* Price */}
-              <div>
-                <label className="block font-bold text-slate-300 mb-1">Valor Cobrado (R$)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2 font-bold text-slate-500">R$</span>
+              {/* 4. Cliente ou Local (opcional) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">Cliente ou Local (opcional)</label>
                   <input
                     type="text"
-                    value={formPrice}
-                    onChange={(e) => setFormPrice(e.target.value)}
-                    placeholder="Ex: 150,00"
-                    className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
+                    value={formClientName}
+                    onChange={(e) => setFormClientName(e.target.value)}
+                    placeholder="Ex: Dr. Marcelo, Sítio..."
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">WhatsApp / Telefone (opcional)</label>
+                  <input
+                    type="tel"
+                    value={formClientPhone}
+                    onChange={(e) => setFormClientPhone(e.target.value)}
+                    placeholder="Ex: (11) 99999-9999"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
                   />
                 </div>
               </div>
 
-              {/* Notes */}
+              {/* Endereço (opcional) */}
               <div>
-                <label className="block font-bold text-slate-300 mb-1">Observações</label>
-                <textarea
-                  rows={2}
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                  placeholder="Produtos a levar, produtos do cliente, tipo da piscina..."
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs resize-none"
+                <label className="block font-bold text-slate-300 mb-1">Endereço (opcional)</label>
+                <input
+                  type="text"
+                  value={formAddress}
+                  onChange={(e) => setFormAddress(e.target.value)}
+                  placeholder="Ex: Rua das Flores, 123 ou Condomínio Portal do Sol"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
                 />
               </div>
 
@@ -1616,14 +1559,14 @@ export const PiscineiroDashboard: React.FC<PiscineiroDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black flex items-center gap-1.5 shadow-lg shadow-purple-600/25 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black flex items-center gap-1.5 shadow-lg shadow-purple-600/25 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
                 >
                   {isSaving ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />

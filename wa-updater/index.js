@@ -155,7 +155,7 @@ async function resolveApkFile() {
 }
 
 // --- Função: Enviar APK via WhatsApp ---
-async function sendApk(targetPhone = DEFAULT_PHONE) {
+async function sendApk(targetPhone = DEFAULT_PHONE, customOptions = {}) {
   if (!sock || !isConnected) {
     throw new Error('WhatsApp não está conectado no momento. Inicie o Baileys e complete o pareamento.');
   }
@@ -165,6 +165,36 @@ async function sendApk(targetPhone = DEFAULT_PHONE) {
     throw new Error('Número de telefone inválido.');
   }
   const jid = `${cleanPhone}@s.whatsapp.net`;
+
+  const customFilePath = customOptions.filePath;
+  if (customFilePath) {
+    if (!fs.existsSync(customFilePath)) {
+      throw new Error(`Arquivo APK não encontrado: ${customFilePath}`);
+    }
+    const customFileName = customOptions.fileName || path.basename(customFilePath);
+    const fileBuffer = fs.readFileSync(customFilePath);
+    const sizeMb = (fileBuffer.length / 1024 / 1024).toFixed(1);
+    const caption =
+      customOptions.caption ||
+      `📲 *${customFileName}* (${sizeMb} MB)\n\n👉 Toque no arquivo acima para instalar!`;
+
+    console.log(`🚀 Iniciando envio do APK customizado (${customFileName}) para ${cleanPhone}...`);
+    await sock.sendMessage(jid, {
+      document: fileBuffer,
+      mimetype: 'application/vnd.android.package-archive',
+      fileName: customFileName,
+      caption
+    });
+
+    console.log(`✅ APK ${customFileName} enviado com sucesso para ${cleanPhone}!`);
+    return {
+      success: true,
+      recipient: cleanPhone,
+      fileName: customFileName,
+      version: customOptions.version || 'custom',
+      sizeMb: `${sizeMb} MB`
+    };
+  }
 
   console.log(`🚀 Iniciando envio do APK para ${cleanPhone}...`);
 
@@ -400,7 +430,12 @@ app.post('/send-apk', async (req, res) => {
   }
 
   try {
-    const result = await sendApk(targetPhone);
+    const result = await sendApk(targetPhone, {
+      filePath: req.body?.filePath,
+      fileName: req.body?.fileName,
+      caption: req.body?.caption,
+      version: req.body?.version
+    });
     return res.json({
       success: true,
       message: `APK enviado com sucesso para +${targetPhone}`,
