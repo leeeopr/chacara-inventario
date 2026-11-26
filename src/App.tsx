@@ -166,6 +166,7 @@ export function App() {
 
   // Stays & Calendar State
   const [isStaysCalendarOpen, setIsStaysCalendarOpen] = useState(false);
+  const [isServiceFormAutoOpen, setIsServiceFormAutoOpen] = useState(false);
   const [pendingStaysCount, setPendingStaysCount] = useState(0);
   const [pendingCleaningCount, setPendingCleaningCount] = useState(0);
 
@@ -1842,6 +1843,10 @@ export function App() {
         userProfile={authProfile}
         onLogout={handleLogout}
         onOpenStaysCalendar={() => setIsStaysCalendarOpen(true)}
+        onOpenNewService={() => {
+          setIsServiceFormAutoOpen(true);
+          setIsStaysCalendarOpen(true);
+        }}
         onOpenPreChecklist={() => setIsPreChecklistExecutionOpen(true)}
         onSelectRoom={(room) => {
           setActiveRoom(room);
@@ -1883,7 +1888,11 @@ export function App() {
       {/* Stays & Calendar Modal (Unified Agenda: Chácara & Serviços Particulares) */}
       <StaysCalendarModal
         isOpen={isStaysCalendarOpen}
-        onClose={() => setIsStaysCalendarOpen(false)}
+        onClose={() => {
+          setIsStaysCalendarOpen(false);
+          setIsServiceFormAutoOpen(false);
+        }}
+        initialOpenServiceForm={isServiceFormAutoOpen}
         onStartChecklistForStay={handleStartChecklistForStay}
         onViewHistoryForStay={() => setIsHistoryModalOpen(true)}
         userRole={authProfile.role}

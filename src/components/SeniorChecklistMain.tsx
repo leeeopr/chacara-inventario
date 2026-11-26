@@ -8,6 +8,7 @@ import {
   Home,
   LogOut,
   Menu,
+  Plus,
   Power,
   RotateCcw,
   Sliders,
@@ -31,6 +32,7 @@ interface SeniorChecklistMainProps {
   userProfile?: AppUserProfile | null;
   onLogout?: () => void;
   onOpenStaysCalendar?: () => void;
+  onOpenNewService?: () => void;
   onOpenPreChecklist?: () => void;
   onSelectRoom: (room: Room) => void;
   onOpenAdminMenu: () => void;
@@ -50,6 +52,7 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
   userProfile = null,
   onLogout,
   onOpenStaysCalendar,
+  onOpenNewService,
   onOpenPreChecklist,
   onSelectRoom,
   onOpenAdminMenu,
@@ -126,7 +129,7 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 space-y-4">
+      <main className="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 space-y-4 pb-28">
         {/* Logged User Bar */}
         {userProfile && (
           <div className="px-4 py-3 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3">
@@ -266,6 +269,22 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
                 Abrir Agenda Geral ›
               </span>
             </div>
+          </div>
+        )}
+
+        {/* Central Action Button: Adicionar Serviço */}
+        {onOpenNewService && (
+          <div className="flex justify-center pt-1 pb-1">
+            <button
+              type="button"
+              onClick={onOpenNewService}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-purple-600/35 border-2 border-purple-400 active:scale-95 transition-all cursor-pointer ring-4 ring-purple-500/20"
+            >
+              <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              </div>
+              <span>+ Adicionar Serviço Particular</span>
+            </button>
           </div>
         )}
 
@@ -462,6 +481,22 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
           </div>
         )}
       </main>
+
+      {/* Floating Central Action Button (FAB) */}
+      {onOpenNewService && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+          <button
+            type="button"
+            onClick={onOpenNewService}
+            className="pointer-events-auto px-6 py-3.5 sm:px-8 sm:py-4 rounded-full bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-sm sm:text-base flex items-center gap-2.5 shadow-2xl shadow-purple-600/60 border-2 border-purple-300 active:scale-95 transition-all cursor-pointer backdrop-blur-md ring-4 ring-purple-500/30"
+          >
+            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+              <Plus className="w-4 h-4 stroke-[3]" />
+            </div>
+            <span>Adicionar Serviço</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

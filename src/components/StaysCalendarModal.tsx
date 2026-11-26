@@ -89,6 +89,7 @@ interface StaysCalendarModalProps {
   userName?: string;
   userEmail?: string;
   onStaysUpdated?: () => void;
+  initialOpenServiceForm?: boolean;
 }
 
 export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
@@ -100,6 +101,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
   userName = 'Proprietário',
   userEmail = 'admin@chacara.com',
   onStaysUpdated,
+  initialOpenServiceForm = false,
 }) => {
   const [stays, setStays] = useState<Stay[]>([]);
   const [personalServices, setPersonalServices] = useState<PersonalService[]>([]);
@@ -162,8 +164,11 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       loadAll();
+      if (initialOpenServiceForm) {
+        handleOpenNewForm();
+      }
     }
-  }, [isOpen, userEmail]);
+  }, [isOpen, userEmail, initialOpenServiceForm]);
 
   // Android Back Handler
   useEffect(() => {
@@ -965,8 +970,22 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
           </div>
         )}
 
+        {/* Central Action Button: Adicionar Serviço */}
+        <div className="px-4 sm:px-6 pt-3 pb-1 flex justify-center shrink-0">
+          <button
+            type="button"
+            onClick={() => handleOpenNewForm()}
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-purple-600/35 border-2 border-purple-400 active:scale-95 transition-all cursor-pointer ring-4 ring-purple-500/20"
+          >
+            <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            </div>
+            <span>+ Adicionar Serviço Particular</span>
+          </button>
+        </div>
+
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 pb-28">
           {/* Calendar Month View */}
           {filterTab === 'calendar' && (
             <div className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 shadow-xl space-y-4">
@@ -1804,6 +1823,22 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Floating Central Button (FAB) */}
+      {!isFormOpen && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+          <button
+            type="button"
+            onClick={() => handleOpenNewForm()}
+            className="pointer-events-auto px-6 py-3.5 sm:px-8 sm:py-4 rounded-full bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-sm sm:text-base flex items-center gap-2.5 shadow-2xl shadow-purple-600/60 border-2 border-purple-300 active:scale-95 transition-all cursor-pointer backdrop-blur-md ring-4 ring-purple-500/30"
+          >
+            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+              <Plus className="w-4 h-4 stroke-[3]" />
+            </div>
+            <span>Adicionar Serviço</span>
+          </button>
         </div>
       )}
     </div>
