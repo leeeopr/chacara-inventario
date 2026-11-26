@@ -37,6 +37,7 @@ interface SeniorChecklistMainProps {
   onSelectRoom: (room: Room) => void;
   onOpenAdminMenu: () => void;
   onStartNewSession: () => void;
+  onPromptSelectStay?: () => void;
   onSeedDefaultRooms: () => void;
   onOpenAccessibility?: () => void;
 }
@@ -57,6 +58,7 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
   onSelectRoom,
   onOpenAdminMenu,
   onStartNewSession,
+  onPromptSelectStay,
   onSeedDefaultRooms,
   onOpenAccessibility,
 }) => {
@@ -158,6 +160,41 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
             )}
           </div>
         )}
+
+        {/* Main Action Banner: Fazer Checklist */}
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-600/25 via-teal-600/20 to-emerald-600/25 border-2 border-emerald-500/50 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/20">
+              <Sparkles className="w-6 h-6 stroke-[2.5]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base sm:text-lg font-black text-white">
+                  Fazer Checklist dos Cômodos
+                </h3>
+                {session?.guest_name_snapshot && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wide border border-emerald-500/30">
+                    Estadia: {session.guest_name_snapshot}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300 font-bold mt-0.5">
+                {session?.guest_name_snapshot
+                  ? 'Estadia vinculada. Toque nos cômodos abaixo para conferir.'
+                  : 'Toque para selecionar qual estadia você está checando e iniciar.'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onPromptSelectStay || onStartNewSession}
+            className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 active:scale-95 transition-all cursor-pointer shrink-0"
+          >
+            <Sparkles className="w-4 h-4 fill-slate-950" />
+            <span>{session?.guest_name_snapshot ? 'Trocar Estadia' : 'Fazer Checklist ›'}</span>
+          </button>
+        </div>
 
         {/* Celebration Banner if all rooms are done */}
         {allCompleted && (
@@ -395,7 +432,13 @@ export const SeniorChecklistMain: React.FC<SeniorChecklistMainProps> = ({
                 <button
                   key={room.id}
                   type="button"
-                  onClick={() => onSelectRoom(room)}
+                  onClick={() => {
+                    if (!session?.guest_name_snapshot && !session?.reservation_code && onPromptSelectStay) {
+                      onPromptSelectStay();
+                      return;
+                    }
+                    onSelectRoom(room);
+                  }}
                   className={`w-full p-5 sm:p-6 rounded-3xl text-left transition-all active:scale-[0.98] flex items-center justify-between gap-4 border-2 shadow-xl ${
                     isCompleted
                       ? 'bg-emerald-950/40 border-emerald-400 shadow-emerald-950/30'

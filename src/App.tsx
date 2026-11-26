@@ -7,8 +7,10 @@ import {
   ArrowRight,
   ArrowUpDown,
   Boxes,
+  Calendar as CalendarIcon,
   Camera,
   CheckCircle2,
+  ClipboardCheck,
   ClipboardList,
   Clock,
   Compass,
@@ -55,6 +57,7 @@ import { QuickRoomInspection } from './components/QuickRoomInspection';
 import { RoomCategoryManagementModal } from './components/RoomCategoryManagementModal';
 import { RoomManagementModal } from './components/RoomManagementModal';
 import { RoomOrderManagementModal } from './components/RoomOrderManagementModal';
+import { SelectStayModal } from './components/SelectStayModal';
 import { PreChecklistConfigModal } from './components/PreChecklistConfigModal';
 import { PreChecklistExecutionModal } from './components/PreChecklistExecutionModal';
 import { SeniorChecklistMain } from './components/SeniorChecklistMain';
@@ -118,6 +121,11 @@ export function App() {
   const [appScreen, setAppScreen] = useState<
     'checklist_main' | 'room_inspection' | 'admin_inventory' | 'piscineiro_view'
   >('checklist_main');
+
+  // Main Bottom Tab Navigation: 'agenda' (Página Inicial - Calendário) vs 'checklists' (Aba ao lado)
+  const [mainTab, setMainTab] = useState<'agenda' | 'checklists'>('agenda');
+  const [isSelectStayModalOpen, setIsSelectStayModalOpen] = useState(false);
+  const [allStays, setAllStays] = useState<Stay[]>([]);
 
   // Currently inspected room
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
@@ -280,10 +288,20 @@ export function App() {
         setIsOtaSettingsModalOpen(false);
         return true;
       }
+      if (isSelectStayModalOpen) {
+        setIsSelectStayModalOpen(false);
+        return true;
+      }
 
       // 2. Secondary screen navigation (e.g. Admin Inventory -> Checklist Main)
       if (appScreen === 'admin_inventory') {
         setAppScreen('checklist_main');
+        return true;
+      }
+
+      // 3. Main tab navigation (Checklists tab -> Agenda home tab)
+      if (mainTab === 'checklists') {
+        setMainTab('agenda');
         return true;
       }
 
@@ -397,6 +415,7 @@ export function App() {
       // Load pending stays & cleaning counts safely
       try {
         const stays = await fetchStays();
+        setAllStays(stays);
         const todayStr = getLocalTodayDateStr();
         const pending = stays.filter((s) => s.checklist_status === 'pending').length;
         const pendingClean = stays.filter(
@@ -417,6 +436,7 @@ export function App() {
   const refreshStaysCounts = useCallback(async () => {
     try {
       const stays = await fetchStays();
+      setAllStays(stays);
       const todayStr = getLocalTodayDateStr();
       setPendingStaysCount(stays.filter((s) => s.checklist_status === 'pending').length);
       setPendingCleaningCount(
@@ -1829,33 +1849,123 @@ export function App() {
     );
   }
 
-  // 3. PRIMARY SCREEN: Senior-Friendly Checklist Main View (Entry Point!)
+  // 3. PRIMARY SCREEN: Tabbed View (Agenda / Calendário as Default Home + Checklists as Adjacent Tab)
   return (
-    <>
-      <SeniorChecklistMain
-        rooms={rooms}
-        roomProgressMap={roomProgressMap}
-        session={activeSession}
-        preChecklistActions={preChecklistActions}
-        preChecklistCompletions={preChecklistCompletions}
-        pendingStaysCount={pendingStaysCount}
-        pendingCleaningCount={pendingCleaningCount}
-        userProfile={authProfile}
-        onLogout={handleLogout}
-        onOpenStaysCalendar={() => setIsStaysCalendarOpen(true)}
-        onOpenNewService={() => {
-          setIsServiceFormAutoOpen(true);
-          setIsStaysCalendarOpen(true);
-        }}
-        onOpenPreChecklist={() => setIsPreChecklistExecutionOpen(true)}
-        onSelectRoom={(room) => {
-          setActiveRoom(room);
-          setAppScreen('room_inspection');
-        }}
-        onOpenAdminMenu={() => setIsAdminDrawerOpen(true)}
-        onOpenAccessibility={() => setIsVisualScaleModalOpen(true)}
-        onStartNewSession={handleStartNewInspection}
-        onSeedDefaultRooms={handleSeedRooms}
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+      {mainTab === 'agenda' ? (
+        <div className="flex-1 flex flex-col pb-20">
+          <StaysCalendarModal
+            isOpen={true}
+            isEmbedded={true}
+            onStartChecklistForStay={handleStartChecklistForStay}
+            onViewHistoryForStay={() => setIsHistoryModalOpen(true)}
+            userRole={authProfile.role}
+            userName={authProfile.full_name}
+            userEmail={authProfile.email}
+            onStaysUpdated={refreshStaysCounts}
+            onOpenChecklistsTab={() => setMainTab('checklists')}
+          />
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col pb-20">
+          <SeniorChecklistMain
+            rooms={rooms}
+            roomProgressMap={roomProgressMap}
+            session={activeSession}
+            preChecklistActions={preChecklistActions}
+            preChecklistCompletions={preChecklistCompletions}
+            pendingStaysCount={pendingStaysCount}
+            pendingCleaningCount={pendingCleaningCount}
+            userProfile={authProfile}
+            onLogout={handleLogout}
+            onOpenStaysCalendar={() => setMainTab('agenda')}
+            onOpenNewService={() => {
+              setMainTab('agenda');
+              setIsServiceFormAutoOpen(true);
+            }}
+            onOpenPreChecklist={() => setIsPreChecklistExecutionOpen(true)}
+            onSelectRoom={(room) => {
+              setActiveRoom(room);
+              setAppScreen('room_inspection');
+            }}
+            onOpenAdminMenu={() => setIsAdminDrawerOpen(true)}
+            onOpenAccessibility={() => setIsVisualScaleModalOpen(true)}
+            onStartNewSession={() => setIsSelectStayModalOpen(true)}
+            onPromptSelectStay={() => setIsSelectStayModalOpen(true)}
+            onSeedDefaultRooms={handleSeedRooms}
+          />
+        </div>
+      )}
+
+      {/* Persistent Bottom Navigation Bar for Staff & Owner */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 border-t border-slate-800 backdrop-blur-md px-4 py-2 flex items-center justify-around shadow-2xl">
+        {/* Tab 1: Agenda (Página Inicial - Calendário) */}
+        <button
+          type="button"
+          onClick={() => setMainTab('agenda')}
+          className={`flex flex-col items-center gap-1 py-1 px-4 rounded-2xl transition-all cursor-pointer ${
+            mainTab === 'agenda'
+              ? 'text-purple-400 font-black'
+              : 'text-slate-400 hover:text-slate-200 font-bold'
+          }`}
+        >
+          <div className={`p-1.5 rounded-xl transition-all ${mainTab === 'agenda' ? 'bg-purple-500/20 shadow-sm' : ''}`}>
+            <CalendarIcon className="w-5 h-5" />
+          </div>
+          <span className="text-[11px]">Agenda</span>
+        </button>
+
+        {/* Tab 2: Checklists (A aba ao lado!) */}
+        <button
+          type="button"
+          onClick={() => setMainTab('checklists')}
+          className={`flex flex-col items-center gap-1 py-1 px-4 rounded-2xl transition-all cursor-pointer ${
+            mainTab === 'checklists'
+              ? 'text-emerald-400 font-black'
+              : 'text-slate-400 hover:text-slate-200 font-bold'
+          }`}
+        >
+          <div className={`p-1.5 rounded-xl transition-all ${mainTab === 'checklists' ? 'bg-emerald-500/20 shadow-sm' : ''}`}>
+            <ClipboardCheck className="w-5 h-5" />
+          </div>
+          <span className="text-[11px]">Checklists</span>
+        </button>
+
+        {/* Admin Shortcuts */}
+        {authProfile.role === 'admin' && (
+          <>
+            <button
+              type="button"
+              onClick={() => setAppScreen('admin_inventory')}
+              className="flex flex-col items-center gap-1 py-1 px-4 rounded-2xl text-slate-400 hover:text-slate-200 font-bold transition-all cursor-pointer"
+            >
+              <div className="p-1.5 rounded-xl">
+                <Layers className="w-5 h-5" />
+              </div>
+              <span className="text-[11px]">Inventário</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsAdminDrawerOpen(true)}
+              className="flex flex-col items-center gap-1 py-1 px-4 rounded-2xl text-slate-400 hover:text-slate-200 font-bold transition-all cursor-pointer"
+            >
+              <div className="p-1.5 rounded-xl">
+                <Menu className="w-5 h-5" />
+              </div>
+              <span className="text-[11px]">Mais</span>
+            </button>
+          </>
+        )}
+      </nav>
+
+      {/* Select Stay Modal: Prompt "Qual estadia você está checando?" */}
+      <SelectStayModal
+        isOpen={isSelectStayModalOpen}
+        onClose={() => setIsSelectStayModalOpen(false)}
+        stays={allStays}
+        onSelectStay={handleStartChecklistForStay}
+        onStartWithoutStay={handleStartNewInspection}
       />
 
       {/* Discreet Admin Navigation Drawer (Three Horizontal Lines Menu) */}
@@ -2042,7 +2152,7 @@ export function App() {
       />
 
       {toastNotification}
-    </>
+    </div>
   );
 }
 

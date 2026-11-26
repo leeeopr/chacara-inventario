@@ -81,9 +81,9 @@ export type UnifiedAgendaItem =
       service: PersonalService;
     };
 
-interface StaysCalendarModalProps {
+export interface StaysCalendarModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   onStartChecklistForStay: (stay: Stay) => void;
   onViewHistoryForStay?: (sessionId: string) => void;
   userRole?: UserRole;
@@ -91,6 +91,8 @@ interface StaysCalendarModalProps {
   userEmail?: string;
   onStaysUpdated?: () => void;
   initialOpenServiceForm?: boolean;
+  isEmbedded?: boolean;
+  onOpenChecklistsTab?: () => void;
 }
 
 export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
@@ -103,6 +105,8 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
   userEmail = 'admin@chacara.com',
   onStaysUpdated,
   initialOpenServiceForm = false,
+  isEmbedded = false,
+  onOpenChecklistsTab,
 }) => {
   const [stays, setStays] = useState<Stay[]>([]);
   const [personalServices, setPersonalServices] = useState<PersonalService[]>([]);
@@ -115,11 +119,14 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
   const [isBatchCompleting, setIsBatchCompleting] = useState(false);
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
+  // Calendar View Mode: month or week (default: month)
+  const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'week'>('month');
+
   // Search & Filter Tabs
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<
     'pending' | 'chacara' | 'personal' | 'calendar' | 'completed' | 'all'
-  >('pending');
+  >('calendar');
 
   // Calendar Month Navigation
   const [currentDate, setCurrentDate] = useState(() => new Date());
@@ -150,27 +157,27 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || isEmbedded) {
       loadAll();
       if (initialOpenServiceForm) {
         handleOpenNewForm();
       }
     }
-  }, [isOpen, userEmail, initialOpenServiceForm]);
+  }, [isOpen, isEmbedded, userEmail, initialOpenServiceForm]);
 
-  // Android Back Handler
+  // Android Back Handler (only active when shown as standalone modal)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || isEmbedded) return;
     const unregister = registerBackHandler('StaysCalendarModal', 60, () => {
       if (isFormOpen) {
         setIsFormOpen(false);
         return true;
       }
-      onClose();
+      onClose?.();
       return true;
     });
     return unregister;
-  }, [isOpen, isFormOpen, onClose]);
+  }, [isOpen, isEmbedded, isFormOpen, onClose]);
 
   // --- Chácara Actions ---
   const handleToggleCleaning = async (stay: Stay) => {
@@ -524,7 +531,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
     return list;
   }, [unifiedItems, filterTab, selectedDateFilter, searchQuery, todayStr]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !isEmbedded) return null;
 
   // Calendar Month Calculations
   const year = currentDate.getFullYear();
@@ -536,18 +543,85 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
   const firstDayIndex = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const handlePrevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-    setSelectedDateFilter(null);
-  };
-  const handleNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
+  // Calendar Week Calculations
+  const weekStart = useMemo(() => {
+    const d = new Date(currentDate);
+    const day = d.getDay(); // 0 is Sunday
+    const diff = d.getDate() - day;
+    return new Date(d.setDate(diff));
+  }, [currentDate]);
+
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      const yr = d.getFullYear();
+      const mo = String(d.getMonth() + 1).padStart(2, '0');
+      const dy = String(d.getDate()).padStart(2, '0');
+      return {
+        date: d,
+        dateStr: `${yr}-${mo}-${dy}`,
+        dayNum: d.getDate(),
+        dayOfWeekIndex: d.getDay(),
+      };
+    });
+  }, [weekStart]);
+
+  const weekRangeLabel = useMemo(() => {
+    if (weekDays.length < 7) return '';
+    const start = weekDays[0].date;
+    const end = weekDays[6].date;
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const startMonth = monthNames[start.getMonth()]?.slice(0, 3) || '';
+    const endMonth = monthNames[end.getMonth()]?.slice(0, 3) || '';
+    if (start.getMonth() === end.getMonth()) {
+      return `${startDay} a ${endDay} de ${monthNames[start.getMonth()]}, ${start.getFullYear()}`;
+    }
+    return `${startDay} de ${startMonth} a ${endDay} de ${endMonth}, ${end.getFullYear()}`;
+  }, [weekDays, monthNames]);
+
+  const handlePrevPeriod = () => {
+    if (calendarViewMode === 'week') {
+      const next = new Date(currentDate);
+      next.setDate(next.getDate() - 7);
+      setCurrentDate(next);
+    } else {
+      setCurrentDate(new Date(year, month - 1, 1));
+    }
     setSelectedDateFilter(null);
   };
 
+  const handleNextPeriod = () => {
+    if (calendarViewMode === 'week') {
+      const next = new Date(currentDate);
+      next.setDate(next.getDate() + 7);
+      setCurrentDate(next);
+    } else {
+      setCurrentDate(new Date(year, month + 1, 1));
+    }
+    setSelectedDateFilter(null);
+  };
+
+  const handleGoToToday = () => {
+    setCurrentDate(new Date());
+    setSelectedDateFilter(todayStr);
+  };
+
+  const handlePrevMonth = handlePrevPeriod;
+  const handleNextMonth = handleNextPeriod;
+
+  const wrapperClass = isEmbedded
+    ? 'w-full flex-1 max-w-5xl mx-auto flex flex-col'
+    : 'fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200';
+
+  const containerClass = isEmbedded
+    ? 'w-full flex-1 bg-slate-950 text-white flex flex-col'
+    : 'w-full max-w-4xl h-[94vh] bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden';
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-4xl h-[94vh] bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+    <div className={wrapperClass}>
+      <div className={containerClass}>
         {/* Top Header */}
         <div className="px-4 sm:px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-950/80 shrink-0">
           <div className="flex items-center gap-3">
@@ -593,13 +667,15 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {onClose && !isEmbedded && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -874,32 +950,77 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 pb-28">
-          {/* Calendar Month View */}
-          {filterTab === 'calendar' && (
+          {/* Calendar Month & Week View */}
+          {(filterTab === 'calendar' || isEmbedded) && (
             <div className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 shadow-xl space-y-4">
-              <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={handlePrevMonth}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <div className="text-center">
-                  <h3 className="text-base font-black text-white">
-                    {monthNames[month]} {year}
-                  </h3>
-                  <span className="text-[11px] text-slate-400 font-semibold">
-                    Toque em um dia para ver estadias da chácara e seus serviços particulares
-                  </span>
+              {/* Period Navigation Header & Mode Switcher */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePrevPeriod}
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
+                    title={calendarViewMode === 'week' ? 'Semana anterior' : 'Mês anterior'}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="text-center sm:text-left min-w-[160px]">
+                    <h3 className="text-base sm:text-lg font-black text-white">
+                      {calendarViewMode === 'month'
+                        ? `${monthNames[month]} ${year}`
+                        : weekRangeLabel}
+                    </h3>
+                    <span className="text-[11px] text-slate-400 font-semibold block">
+                      Toque em um dia para ver estadias e serviços
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleNextPeriod}
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
+                    title={calendarViewMode === 'week' ? 'Próxima semana' : 'Próximo mês'}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleNextMonth}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+
+                {/* Switcher & Hoje Button */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGoToToday}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Hoje
+                  </button>
+
+                  <div className="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setCalendarViewMode('month')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        calendarViewMode === 'month'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Mês
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCalendarViewMode('week')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        calendarViewMode === 'week'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Semana
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Day headers */}
@@ -913,88 +1034,192 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                 <span>Sáb</span>
               </div>
 
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                {Array.from({ length: firstDayIndex }).map((_, i) => (
-                  <div key={`empty-${i}`} className="h-16 sm:h-20 rounded-xl bg-slate-900/20 opacity-30" />
-                ))}
+              {/* 1. MONTH VIEW GRID */}
+              {calendarViewMode === 'month' && (
+                <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                  {Array.from({ length: firstDayIndex }).map((_, i) => (
+                    <div key={`empty-${i}`} className="h-16 sm:h-20 rounded-xl bg-slate-900/20 opacity-30" />
+                  ))}
 
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const dayNum = i + 1;
-                  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-                  const isSelected = selectedDateFilter === dateStr;
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const dayNum = i + 1;
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                    const isSelected = selectedDateFilter === dateStr;
+                    const isToday = dateStr === todayStr;
 
-                  // Find Chácara stays affecting this day
-                  const dayStays = stays.filter(
-                    (s) =>
-                      s.checkin_date === dateStr ||
-                      s.checkout_date === dateStr ||
-                      (s.checkin_date <= dateStr && dateStr <= s.checkout_date)
-                  );
-                  const hasCheckin = dayStays.some((s) => s.checkin_date === dateStr);
-                  const hasCheckout = dayStays.some((s) => s.checkout_date === dateStr);
+                    // Find Chácara stays affecting this day
+                    const dayStays = stays.filter(
+                      (s) =>
+                        s.checkin_date === dateStr ||
+                        s.checkout_date === dateStr ||
+                        (s.checkin_date <= dateStr && dateStr <= s.checkout_date)
+                    );
+                    const hasCheckin = dayStays.some((s) => s.checkin_date === dateStr);
+                    const hasCheckout = dayStays.some((s) => s.checkout_date === dateStr);
 
-                  // Find Personal services on this day
-                  const dayPersonal = personalServices.filter((s) => s.service_date === dateStr);
+                    // Find Personal services on this day
+                    const dayPersonal = personalServices.filter((s) => s.service_date === dateStr);
 
-                  const hasPendingTask =
-                    dayStays.some((s) => s.checklist_status === 'pending') ||
-                    dayStays.some((s) => s.status !== 'CANCELADA' && s.checkout_date <= todayStr && s.cleaning_status === 'pending') ||
-                    dayPersonal.some((s) => s.status === 'scheduled');
+                    const hasPendingTask =
+                      dayStays.some((s) => s.checklist_status === 'pending') ||
+                      dayStays.some((s) => s.status !== 'CANCELADA' && s.checkout_date <= todayStr && s.cleaning_status === 'pending') ||
+                      dayPersonal.some((s) => s.status === 'scheduled');
 
-                  return (
-                    <div
-                      key={dateStr}
-                      onClick={() => {
-                        setSelectedDateFilter(isSelected ? null : dateStr);
-                      }}
-                      className={`h-16 sm:h-20 p-1 sm:p-2 rounded-2xl border transition-all flex flex-col justify-between ${
-                        isSelected
-                          ? 'bg-indigo-500/25 border-indigo-400 ring-2 ring-indigo-400/50 shadow-lg'
-                          : dayStays.length > 0 || dayPersonal.length > 0
-                          ? 'bg-slate-900/90 border-slate-700 hover:border-indigo-500/40 cursor-pointer'
-                          : 'bg-slate-950/40 border-slate-800/60 text-slate-600'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs font-black ${isSelected ? 'text-indigo-300' : 'text-slate-300'}`}>
-                          {dayNum}
-                        </span>
-                        {hasPendingTask && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-                        )}
+                    return (
+                      <div
+                        key={dateStr}
+                        onClick={() => {
+                          setSelectedDateFilter(isSelected ? null : dateStr);
+                        }}
+                        className={`h-16 sm:h-20 p-1 sm:p-2 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-500/25 border-indigo-400 ring-2 ring-indigo-400/50 shadow-lg'
+                            : isToday
+                            ? 'bg-purple-950/30 border-purple-500/40 ring-1 ring-purple-400/30'
+                            : dayStays.length > 0 || dayPersonal.length > 0
+                            ? 'bg-slate-900/90 border-slate-700 hover:border-indigo-500/40'
+                            : 'bg-slate-950/40 border-slate-800/60 text-slate-600'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-black ${isSelected ? 'text-indigo-300' : isToday ? 'text-amber-400' : 'text-slate-300'}`}>
+                            {dayNum}
+                          </span>
+                          {hasPendingTask && (
+                            <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                          )}
+                        </div>
+
+                        {/* Day pills */}
+                        <div className="space-y-0.5 overflow-hidden">
+                          {hasCheckin && (
+                            <div className="text-[9px] font-black px-1 rounded bg-emerald-500/20 text-emerald-300 truncate">
+                              Entrada Chácara
+                            </div>
+                          )}
+                          {hasCheckout && (
+                            <div className="text-[9px] font-black px-1 rounded bg-amber-500/25 text-amber-200 truncate">
+                              Saída Chácara
+                            </div>
+                          )}
+                          {dayPersonal.slice(0, 1).map((ps) => (
+                            <div
+                              key={ps.id}
+                              className="text-[9px] font-bold px-1 rounded bg-purple-500/25 text-purple-200 truncate"
+                            >
+                              {formatTimeShort(ps.start_time)} {ps.title}
+                            </div>
+                          ))}
+                          {dayPersonal.length > 1 && (
+                            <div className="text-[8px] font-bold text-slate-500 pl-0.5">
+                              +{dayPersonal.length - 1} particular
+                            </div>
+                          )}
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              )}
 
-                      {/* Day pills */}
-                      <div className="space-y-0.5 overflow-hidden">
-                        {hasCheckin && (
-                          <div className="text-[9px] font-black px-1 rounded bg-emerald-500/20 text-emerald-300 truncate">
-                            Entrada Chácara
+              {/* 2. WEEK VIEW GRID */}
+              {calendarViewMode === 'week' && (
+                <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                  {weekDays.map((wd) => {
+                    const dateStr = wd.dateStr;
+                    const isSelected = selectedDateFilter === dateStr;
+                    const isToday = dateStr === todayStr;
+
+                    // Find Chácara stays affecting this day
+                    const dayStays = stays.filter(
+                      (s) =>
+                        s.checkin_date === dateStr ||
+                        s.checkout_date === dateStr ||
+                        (s.checkin_date <= dateStr && dateStr <= s.checkout_date)
+                    );
+                    const hasCheckin = dayStays.some((s) => s.checkin_date === dateStr);
+                    const hasCheckout = dayStays.some((s) => s.checkout_date === dateStr);
+
+                    // Find Personal services on this day
+                    const dayPersonal = personalServices.filter((s) => s.service_date === dateStr);
+
+                    const hasPendingTask =
+                      dayStays.some((s) => s.checklist_status === 'pending') ||
+                      dayStays.some((s) => s.status !== 'CANCELADA' && s.checkout_date <= todayStr && s.cleaning_status === 'pending') ||
+                      dayPersonal.some((s) => s.status === 'scheduled');
+
+                    return (
+                      <div
+                        key={dateStr}
+                        onClick={() => {
+                          setSelectedDateFilter(isSelected ? null : dateStr);
+                        }}
+                        className={`min-h-[110px] sm:min-h-[140px] p-1.5 sm:p-2.5 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-500/25 border-indigo-400 ring-2 ring-indigo-400/50 shadow-lg'
+                            : isToday
+                            ? 'bg-purple-950/40 border-purple-500/50 ring-1 ring-purple-400/30'
+                            : dayStays.length > 0 || dayPersonal.length > 0
+                            ? 'bg-slate-900/90 border-slate-700 hover:border-indigo-500/40'
+                            : 'bg-slate-950/40 border-slate-800/60 text-slate-600'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className={`text-xs sm:text-sm font-black ${isSelected ? 'text-indigo-300' : isToday ? 'text-amber-400' : 'text-slate-300'}`}>
+                              {wd.dayNum}
+                            </span>
+                            {isToday && (
+                              <span className="text-[8px] sm:text-[9px] font-black uppercase text-amber-400 bg-amber-500/20 px-1 py-0.2 rounded">
+                                Hoje
+                              </span>
+                            )}
+                            {hasPendingTask && !isToday && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                            )}
                           </div>
-                        )}
-                        {hasCheckout && (
-                          <div className="text-[9px] font-black px-1 rounded bg-amber-500/25 text-amber-200 truncate">
-                            Saída Chácara
+
+                          {/* Day pills */}
+                          <div className="space-y-1 overflow-hidden">
+                            {hasCheckin && (
+                              <div className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 truncate">
+                                Entrada Chácara
+                              </div>
+                            )}
+                            {hasCheckout && (
+                              <div className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-amber-500/25 text-amber-200 truncate">
+                                Saída Chácara
+                              </div>
+                            )}
+                            {dayPersonal.map((ps) => (
+                              <div
+                                key={ps.id}
+                                className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/25 text-purple-200 truncate"
+                              >
+                                {formatTimeShort(ps.start_time)} {ps.title}
+                              </div>
+                            ))}
                           </div>
-                        )}
-                        {dayPersonal.slice(0, 1).map((ps) => (
-                          <div
-                            key={ps.id}
-                            className="text-[9px] font-bold px-1 rounded bg-purple-500/25 text-purple-200 truncate"
-                          >
-                            {formatTimeShort(ps.start_time)} {ps.title}
-                          </div>
-                        ))}
-                        {dayPersonal.length > 1 && (
-                          <div className="text-[8px] font-bold text-slate-500 pl-0.5">
-                            +{dayPersonal.length - 1} particular
-                          </div>
-                        )}
+                        </div>
+
+                        {/* Quick Add Button on this day */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenNewForm(dateStr);
+                          }}
+                          className="mt-1 w-full py-1 rounded-lg bg-slate-800 hover:bg-purple-600 text-slate-400 hover:text-white text-[10px] font-bold flex items-center justify-center gap-1 transition-all"
+                          title="Agendar neste dia"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span className="hidden sm:inline">Adicionar</span>
+                        </button>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -1246,7 +1471,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                           <button
                             type="button"
                             onClick={() => {
-                              onClose();
+                              onClose?.();
                               onStartChecklistForStay(stay);
                             }}
                             className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-amber-500/25 transition-all cursor-pointer active:scale-95"
@@ -1259,7 +1484,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                             type="button"
                             onClick={() => {
                               if (stay.checklist_session_id && onViewHistoryForStay) {
-                                onClose();
+                                onClose?.();
                                 onViewHistoryForStay(stay.checklist_session_id);
                               }
                             }}
@@ -1272,7 +1497,7 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
                           <button
                             type="button"
                             onClick={() => {
-                              onClose();
+                              onClose?.();
                               onStartChecklistForStay(stay);
                             }}
                             className="px-3.5 py-2.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
