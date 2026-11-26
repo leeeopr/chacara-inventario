@@ -63,6 +63,7 @@ import {
   PersonalService,
 } from '../types/personalService';
 import { Stay, StayCleaningStatus, StayPoolStatus } from '../types/stay';
+import { PersonalServiceWizardModal, ServiceWizardFormData } from './PersonalServiceWizardModal';
 
 export type UnifiedAgendaItem =
   | {
@@ -127,19 +128,6 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
   // Personal Service Form Modal
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<PersonalService | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Form Fields
-  const [formTitle, setFormTitle] = useState('');
-  const [formClientName, setFormClientName] = useState('');
-  const [formClientPhone, setFormClientPhone] = useState('');
-  const [formAddress, setFormAddress] = useState('');
-  const [formDate, setFormDate] = useState(() => getLocalTodayDateStr());
-  const [formStartTime, setFormStartTime] = useState('08:00');
-  const [formEndTime, setFormEndTime] = useState('12:00');
-  const [formCategory, setFormCategory] = useState('geral');
-  const [formPrice, setFormPrice] = useState('');
-  const [formNotes, setFormNotes] = useState('');
 
   const todayStr = getLocalTodayDateStr();
   const categories = useMemo(() => getCategoriesForRole(userRole), [userRole]);
@@ -359,121 +347,15 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
     }
   };
 
-  const presetTitles = useMemo(() => {
-    if (userRole === 'piscineiro') {
-      return ['Limpeza & Aspiração', 'Tratamento com Cloro', 'Troca de Areia', 'Manutenção Bomba', 'Outro Serviço'];
-    }
-    if (userRole === 'faxineira') {
-      return ['Faxina', 'Faxina Pesada', 'Passadoria', 'Diarista', 'Outro Serviço'];
-    }
-    return ['Faxina', 'Limpeza Piscina', 'Manutenção Geral', 'Outro Serviço'];
-  }, [userRole]);
-
   // --- Personal Services Actions ---
-  const handleOpenNewForm = (presetDate?: string, presetHour?: string) => {
+  const handleOpenNewForm = (presetDate?: string) => {
     setEditingService(null);
-    const dateVal = presetDate || selectedDateFilter || todayStr;
-    const startHour = presetHour ? presetHour.slice(0, 5) : '08:00';
-    const [h, m] = startHour.split(':').map(Number);
-    const endHourNum = Math.min(h + 3, 23);
-    const endHour = `${String(endHourNum).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
-
-    setFormTitle(
-      userRole === 'faxineira'
-        ? 'Faxina'
-        : userRole === 'piscineiro'
-        ? 'Limpeza de Piscina'
-        : 'Serviço'
-    );
-    setFormClientName('');
-    setFormClientPhone('');
-    setFormAddress('');
-    setFormDate(dateVal);
-    setFormStartTime(startHour);
-    setFormEndTime(endHour);
-    setFormCategory('geral');
-    setFormPrice('');
-    setFormNotes('');
     setIsFormOpen(true);
   };
 
   const handleOpenEditForm = (srv: PersonalService) => {
     setEditingService(srv);
-    setFormTitle(srv.title);
-    setFormClientName(srv.client_name || '');
-    setFormClientPhone(srv.client_phone || '');
-    setFormAddress(srv.address || '');
-    setFormDate(srv.service_date);
-    setFormStartTime(srv.start_time ? srv.start_time.slice(0, 5) : '08:00');
-    setFormEndTime(srv.end_time ? srv.end_time.slice(0, 5) : '12:00');
-    setFormCategory(srv.category || 'geral');
-    setFormPrice('');
-    setFormNotes(srv.notes || '');
     setIsFormOpen(true);
-  };
-
-  const handleSaveForm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formTitle.trim()) {
-      alert('Informe o título do serviço.');
-      return;
-    }
-    if (!formDate) {
-      alert('Informe a data do serviço.');
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      if (editingService) {
-        const updated = await updatePersonalService(
-          editingService.id,
-          {
-            title: formTitle.trim(),
-            client_name: formClientName.trim() || null,
-            client_phone: formClientPhone.trim() || null,
-            address: formAddress.trim() || null,
-            service_date: formDate,
-            start_time: formStartTime,
-            end_time: formEndTime,
-            category: formCategory || 'geral',
-            price: null,
-            notes: formNotes.trim() || null,
-          },
-          userEmail || 'default@chacara.com'
-        );
-        setPersonalServices((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-        setFeedbackToast('Serviço atualizado com sucesso!');
-        setTimeout(() => setFeedbackToast(null), 3000);
-      } else {
-        const created = await createPersonalService({
-          user_email: userEmail || 'default@chacara.com',
-          staff_role: userRole,
-          title: formTitle.trim(),
-          client_name: formClientName.trim() || null,
-          client_phone: formClientPhone.trim() || null,
-          address: formAddress.trim() || null,
-          service_date: formDate,
-          start_time: formStartTime,
-          end_time: formEndTime,
-          category: formCategory || 'geral',
-          color: '#8b5cf6',
-          price: null,
-          status: 'scheduled',
-          notes: formNotes.trim() || null,
-        });
-        setPersonalServices((prev) => [...prev, created]);
-        setFeedbackToast('Novo serviço agendado!');
-        setTimeout(() => setFeedbackToast(null), 3000);
-      }
-      setIsFormOpen(false);
-    } catch (err) {
-      console.error('Erro ao salvar serviço:', err);
-      alert('Falha ao salvar o serviço.');
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   const handleTogglePersonalStatus = async (srv: PersonalService) => {
@@ -1609,180 +1491,60 @@ export const StaysCalendarModal: React.FC<StaysCalendarModalProps> = ({
         )}
       </div>
 
-      {/* CREATE / EDIT PERSONAL SERVICE MODAL FORM */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-60 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                  <CalendarIcon className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-black text-white">
-                  {editingService ? 'Editar Serviço Particular' : 'Novo Serviço Particular na Agenda'}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsFormOpen(false)}
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveForm} className="p-5 overflow-y-auto space-y-4 text-xs sm:text-sm">
-              {/* 1. Serviço / Título com sugestões rápidas */}
-              <div>
-                <label className="block font-bold text-slate-200 mb-1">
-                  Qual é o serviço? *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="Ex: Faxina, Limpeza de Piscina..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
-                />
-                {/* Sugestões rápidas de 1 clique */}
-                <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                  {presetTitles.map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setFormTitle(preset)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                        formTitle === preset
-                          ? 'bg-purple-600 text-white shadow-sm'
-                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 2. Data com botões Hoje e Amanhã */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="font-bold text-slate-200">Data do Serviço *</label>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setFormDate(todayStr)}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
-                    >
-                      Hoje
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        setFormDate(tomorrow.toISOString().slice(0, 10));
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
-                    >
-                      Amanhã
-                    </button>
-                  </div>
-                </div>
-                <input
-                  type="date"
-                  required
-                  value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
-                />
-              </div>
-
-              {/* 3. Horários: Início e Término */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-200 mb-1">Horário de Início *</label>
-                  <input
-                    type="time"
-                    required
-                    value={formStartTime}
-                    onChange={(e) => setFormStartTime(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-200 mb-1">Horário de Término</label>
-                  <input
-                    type="time"
-                    value={formEndTime}
-                    onChange={(e) => setFormEndTime(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold focus:outline-none focus:border-purple-400 text-xs sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* 4. Cliente ou Local (opcional) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-300 mb-1">Cliente ou Local (opcional)</label>
-                  <input
-                    type="text"
-                    value={formClientName}
-                    onChange={(e) => setFormClientName(e.target.value)}
-                    placeholder="Ex: D. Maria, Sítio..."
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-300 mb-1">WhatsApp / Telefone (opcional)</label>
-                  <input
-                    type="tel"
-                    value={formClientPhone}
-                    onChange={(e) => setFormClientPhone(e.target.value)}
-                    placeholder="Ex: (11) 99999-9999"
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Endereço (opcional) */}
-              <div>
-                <label className="block font-bold text-slate-300 mb-1">Endereço (opcional)</label>
-                <input
-                  type="text"
-                  value={formAddress}
-                  onChange={(e) => setFormAddress(e.target.value)}
-                  placeholder="Ex: Rua das Flores, 120"
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold placeholder:text-slate-600 focus:outline-none focus:border-purple-400 text-xs"
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black flex items-center gap-1.5 shadow-lg shadow-purple-600/25 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
-                >
-                  {isSaving ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  )}
-                  <span>{editingService ? 'Salvar Alterações' : 'Salvar no Calendário'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* DYNAMIC STEP-BY-STEP PERSONAL SERVICE WIZARD MODAL */}
+      <PersonalServiceWizardModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        role={userRole === 'piscineiro' ? 'piscineiro' : 'faxineira'}
+        editingService={editingService}
+        initialDate={selectedDateFilter || todayStr}
+        onSave={async (data: ServiceWizardFormData) => {
+          const userMail = userEmail || 'default@chacara.com';
+          const catMeta = getCategoryMeta(data.category, userRole);
+          if (editingService) {
+            const updated = await updatePersonalService(
+              editingService.id,
+              {
+                title: data.title,
+                client_name: data.client_name || null,
+                client_phone: data.client_phone || null,
+                address: data.address || null,
+                service_date: data.service_date,
+                start_time: data.start_time,
+                end_time: data.end_time || null,
+                category: data.category,
+                color: catMeta.color,
+                price: null,
+                notes: null,
+              },
+              userMail
+            );
+            setPersonalServices((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+            setFeedbackToast('Serviço atualizado com sucesso!');
+            setTimeout(() => setFeedbackToast(null), 3000);
+          } else {
+            const created = await createPersonalService({
+              user_email: userMail,
+              staff_role: userRole,
+              title: data.title,
+              client_name: data.client_name || null,
+              client_phone: data.client_phone || null,
+              address: data.address || null,
+              service_date: data.service_date,
+              start_time: data.start_time,
+              end_time: data.end_time || null,
+              category: data.category,
+              color: catMeta.color,
+              price: null,
+              status: 'scheduled',
+              notes: null,
+            });
+            setPersonalServices((prev) => [...prev, created]);
+            setFeedbackToast('Novo serviço agendado!');
+            setTimeout(() => setFeedbackToast(null), 3000);
+          }
+        }}
+      />
 
       {/* Floating Central Button (FAB) */}
       {!isFormOpen && (
